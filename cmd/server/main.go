@@ -47,15 +47,13 @@ func updateMetric(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Only Post requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
-	if req.Method != http.MethodPost {
-		http.Error(res, "Only Post requests are allowed!", http.StatusMethodNotAllowed)
-		return
-	}
 	// check url correctness
 	components := strings.Split(req.URL.Path, "/")
 	if len(components) != 5 {
 		http.Error(res, "Wrong URL!", http.StatusNotFound)
+		return
 	}
+	// fmt.Println("Continue")
 	// Check metric type
 	if components[2] == "gauge" {
 		number, err := strconv.ParseFloat(components[4], 64)
