@@ -38,6 +38,7 @@ func mainPage(res http.ResponseWriter, req *http.Request) {
 	// устанавливаем код 200
 	res.WriteHeader(http.StatusOK)
 	// пишем тело ответа
+	res.Write([]byte(body))
 	res.Write(resp)
 }
 
