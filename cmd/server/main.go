@@ -97,7 +97,7 @@ func main() {
 	// mux.HandleFunc(`/p/`, redirect)
 	// mux.HandleFunc(`/a/`, http.NotFoundHandler().ServeHTTP)
 	// mux.HandleFunc(`/golang/`, http.NotFoundHandler().ServeHTTP)
-	err := http.ListenAndServe(`:8081`, mux)
+	err := http.ListenAndServe(`:8080`, mux)
 	if err != nil {
 		panic(err)
 	}
