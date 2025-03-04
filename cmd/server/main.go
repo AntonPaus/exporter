@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,18 +14,20 @@ type MemStorage struct {
 var m MemStorage
 
 func mainPage(res http.ResponseWriter, req *http.Request) {
-	err := req.ParseForm()
-	if err != nil {
-		panic(err)
-	}
-	body := fmt.Sprintf("Method: %s\r\n", req.Method)
-	for k, v := range req.Header {
-		body += fmt.Sprintf("%s: %v\r\n", k, v)
-	}
-	body += "Query parameters ===============\r\n"
-	for k, v := range req.Form {
-		body += fmt.Sprintf("%s: %v\r\n", k, v)
-	}
+	http.Error(res, "Wrong URL!", http.StatusNotFound)
+	return
+	// err := req.ParseForm()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// body := fmt.Sprintf("Method: %s\r\n", req.Method)
+	// for k, v := range req.Header {
+	// 	body += fmt.Sprintf("%s: %v\r\n", k, v)
+	// }
+	// body += "Query parameters ===============\r\n"
+	// for k, v := range req.Form {
+	// 	body += fmt.Sprintf("%s: %v\r\n", k, v)
+	// }
 	// кодируем в JSON
 	// resp, err := json.Marshal(m)
 	// if err != nil {
@@ -35,7 +36,7 @@ func mainPage(res http.ResponseWriter, req *http.Request) {
 	// }
 	// res.Header().Set("content-type", "application/json")
 	// устанавливаем код 200
-	res.WriteHeader(http.StatusNotFound)
+	// res.WriteHeader(http.StatusNotFound)
 	// пишем тело ответа
 	// res.Write([]byte(body))
 	// res.Write(resp)
