@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -29,17 +28,17 @@ func mainPage(res http.ResponseWriter, req *http.Request) {
 		body += fmt.Sprintf("%s: %v\r\n", k, v)
 	}
 	// кодируем в JSON
-	resp, err := json.Marshal(m)
-	if err != nil {
-		http.Error(res, err.Error(), 500)
-		return
-	}
-	res.Header().Set("content-type", "application/json")
+	// resp, err := json.Marshal(m)
+	// if err != nil {
+	// 	http.Error(res, err.Error(), 500)
+	// 	return
+	// }
+	// res.Header().Set("content-type", "application/json")
 	// устанавливаем код 200
-	res.WriteHeader(http.StatusOK)
+	res.WriteHeader(http.StatusNotFound)
 	// пишем тело ответа
-	res.Write([]byte(body))
-	res.Write(resp)
+	// res.Write([]byte(body))
+	// res.Write(resp)
 }
 
 func updateMetric(res http.ResponseWriter, req *http.Request) {
