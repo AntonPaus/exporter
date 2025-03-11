@@ -1,7 +1,10 @@
 // sum_test.go
 package main
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestSum(t *testing.T) {
 	tests := []struct { // добавляем слайс тестов
@@ -41,6 +44,24 @@ func TestSum(t *testing.T) {
 			if sum := Sum(test.values...); sum != test.want {
 				t.Errorf("Sum() = %d, want %d", sum, test.want)
 			}
+		})
+	}
+}
+
+func Test_pollStats(t *testing.T) {
+	type args struct {
+		stats    chan Metrics
+		interval time.Duration
+	}
+	tests := []struct {
+		name string
+		args args
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pollStats(tt.args.stats, tt.args.interval)
 		})
 	}
 }
