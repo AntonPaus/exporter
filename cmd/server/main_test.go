@@ -50,7 +50,7 @@ func Test_updateMetric(t *testing.T) {
 			h := http.HandlerFunc(updateMetric)
 			h(w, request)
 			res := w.Result()
-
+			defer res.Body.Close()
 			require.Equal(t, test.want.code, res.StatusCode)
 			// if test.want.code == http.StatusOK {
 			// 	// получаем и проверяем тело запроса

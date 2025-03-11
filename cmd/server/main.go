@@ -15,7 +15,6 @@ var m MemStorage
 
 func mainPage(res http.ResponseWriter, req *http.Request) {
 	http.Error(res, "Wrong URL!", http.StatusNotFound)
-	return
 	// err := req.ParseForm()
 	// if err != nil {
 	// 	panic(err)
