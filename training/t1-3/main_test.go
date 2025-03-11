@@ -2,8 +2,6 @@ package main
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestFamily_AddNew(t *testing.T) {
@@ -62,7 +60,7 @@ func TestFamily_AddNew(t *testing.T) {
 				Members: tt.existedMembers,
 			}
 			err := f.AddNew(tt.newPerson.r, tt.newPerson.p)
-			assert.Nil()
+			// assert.Nil()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddNew() error = %v, wantErr %v", err, tt.wantErr)
 			}
