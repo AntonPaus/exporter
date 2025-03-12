@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/AntonPaus/exporter/internal/storages/memory"
 )
 
 type MemStorage struct {
@@ -13,35 +17,35 @@ type MemStorage struct {
 
 var m MemStorage
 
-func mainPage(res http.ResponseWriter, req *http.Request) {
-	http.Error(res, "Wrong URL!", http.StatusNotFound)
-	// err := req.ParseForm()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// body := fmt.Sprintf("Method: %s\r\n", req.Method)
-	// for k, v := range req.Header {
-	// 	body += fmt.Sprintf("%s: %v\r\n", k, v)
-	// }
-	// body += "Query parameters ===============\r\n"
-	// for k, v := range req.Form {
-	// 	body += fmt.Sprintf("%s: %v\r\n", k, v)
-	// }
+func mainPage(res http.ResponseWriter, req *http.Request, storage *memory.Memory) {
+	// http.Error(res, "Wrong URL!", http.StatusNotFound)
+	err := req.ParseForm()
+	if err != nil {
+		panic(err)
+	}
+	body := fmt.Sprintf("Method: %s\r\n", req.Method)
+	for k, v := range req.Header {
+		body += fmt.Sprintf("%s: %v\r\n", k, v)
+	}
+	body += "Query parameters ===============\r\n"
+	for k, v := range req.Form {
+		body += fmt.Sprintf("%s: %v\r\n", k, v)
+	}
 	// кодируем в JSON
-	// resp, err := json.Marshal(m)
-	// if err != nil {
-	// 	http.Error(res, err.Error(), 500)
-	// 	return
-	// }
-	// res.Header().Set("content-type", "application/json")
+	resp, err := json.Marshal(m)
+	if err != nil {
+		http.Error(res, err.Error(), 500)
+		return
+	}
+	res.Header().Set("content-type", "application/json")
 	// устанавливаем код 200
-	// res.WriteHeader(http.StatusNotFound)
+	res.WriteHeader(http.StatusNotFound)
 	// пишем тело ответа
-	// res.Write([]byte(body))
-	// res.Write(resp)
+	res.Write([]byte(body))
+	res.Write(resp)
 }
 
-func updateMetric(res http.ResponseWriter, req *http.Request) {
+func updateMetric(res http.ResponseWriter, req *http.Request, storage *memory.Memory) {
 	if req.Method != http.MethodPost {
 		http.Error(res, "Only Post requests are allowed!", http.StatusMethodNotAllowed)
 		return
@@ -54,13 +58,14 @@ func updateMetric(res http.ResponseWriter, req *http.Request) {
 	}
 	// fmt.Println("Continue")
 	// Check metric type
-	if components[2] == "gauge" {
-		number, err := strconv.ParseFloat(components[4], 64)
+	switch components[2] {
+	case "gauge":
+		_, err := strconv.ParseFloat(components[4], 64)
 		if err != nil {
 			http.Error(res, "Wrong metric value!", http.StatusBadRequest)
 		}
-		m.Gauge[components[3]] = number
-	} else if components[2] == "counter" {
+		storage.Update("gauge", components[3], components[4])
+	case "counter":
 		number, err := strconv.Atoi(components[4])
 		if err != nil {
 			http.Error(res, "Wrong metric value!", http.StatusBadRequest)
@@ -71,12 +76,23 @@ func updateMetric(res http.ResponseWriter, req *http.Request) {
 		} else {
 			m.Counter[components[3]] = number
 		}
-	} else {
+		storage.Update("counter", components[3], components[4])
+	default:
 		http.Error(res, "Wrong metric type!", http.StatusBadRequest)
+		return
 	}
 	res.WriteHeader(http.StatusOK)
 	res.Write([]byte(req.URL.Path))
 }
+
+// type Repository interface {
+// 	GetOrCreateHour(ctx context.Context, hourTime time.Time) (*Hour, error)
+// 	UpdateHour(
+// 		 ctx context.Context,
+// 		 hourTime time.Time,
+// 		 updateFn func(h *Hour) (*Hour, error),
+// 	) error
+// }
 
 func main() {
 	m = MemStorage{
@@ -89,9 +105,10 @@ func main() {
 			"errors":   0,
 		},
 	}
+	storage := memory.NewMemory()
 	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, mainPage)
-	mux.HandleFunc(`/update/`, updateMetric)
+	mux.HandleFunc(`/`, func(w http.ResponseWriter, r *http.Request) { mainPage(w, r, storage) })
+	mux.HandleFunc(`/update/`, func(w http.ResponseWriter, r *http.Request) { updateMetric(w, r, storage) })
 	// mux.HandleFunc(`/p/`, redirect)
 	// mux.HandleFunc(`/a/`, http.NotFoundHandler().ServeHTTP)
 	// mux.HandleFunc(`/golang/`, http.NotFoundHandler().ServeHTTP)
