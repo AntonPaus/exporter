@@ -1,6 +1,6 @@
 module github.com/AntonPaus/exporter
 
-go 1.22.12
+go 1.23.7
 
 require github.com/stretchr/testify v1.10.0
 
