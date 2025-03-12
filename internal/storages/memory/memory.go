@@ -2,25 +2,28 @@ package memory
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"sync"
 
 	"github.com/AntonPaus/exporter/internal/repository"
 )
 
+type gauge float64
+type counter int64
 type Memory struct {
 	repository.Interfacer
 	mu sync.Mutex
-	g  map[string]float64
-	c  map[string]int64
+	G  map[string]gauge
+	C  map[string]counter
 	// a string
 	// b int64
 }
 
 func NewMemory() *Memory {
 	return &Memory{
-		g: make(map[string]float64),
-		c: make(map[string]int64),
+		G: make(map[string]gauge),
+		C: make(map[string]counter),
 	}
 }
 
@@ -33,13 +36,19 @@ func (m *Memory) Update(metricType string, metricName string, metricValue string
 		if err != nil {
 			return errors.New("invalid gauge value")
 		}
-		m.g[metricName] = floatValue
+		fmt.Println("->", metricType, metricName, metricValue)
+		m.G[metricName] = gauge(floatValue)
 	case "counter":
 		intValue, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			return errors.New("invalid counter value")
 		}
-		m.c[metricName] = intValue
+		_, ok := m.C[metricName]
+		if ok {
+			m.C[metricName] += counter(intValue)
+		} else {
+			m.C[metricName] = counter(intValue)
+		}
 	default:
 		return errors.New("unknown metric type")
 	}

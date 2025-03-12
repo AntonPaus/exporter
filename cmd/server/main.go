@@ -32,7 +32,12 @@ func mainPage(res http.ResponseWriter, req *http.Request, storage *memory.Memory
 		body += fmt.Sprintf("%s: %v\r\n", k, v)
 	}
 	// кодируем в JSON
-	resp, err := json.Marshal(m)
+	js, err := json.Marshal(storage.G)
+	if err != nil {
+		http.Error(res, err.Error(), 500)
+		return
+	}
+	js2, err := json.Marshal(storage.C)
 	if err != nil {
 		http.Error(res, err.Error(), 500)
 		return
@@ -42,7 +47,8 @@ func mainPage(res http.ResponseWriter, req *http.Request, storage *memory.Memory
 	res.WriteHeader(http.StatusNotFound)
 	// пишем тело ответа
 	res.Write([]byte(body))
-	res.Write(resp)
+	res.Write(js)
+	res.Write(js2)
 }
 
 func updateMetric(res http.ResponseWriter, req *http.Request, storage *memory.Memory) {
@@ -66,15 +72,9 @@ func updateMetric(res http.ResponseWriter, req *http.Request, storage *memory.Me
 		}
 		storage.Update("gauge", components[3], components[4])
 	case "counter":
-		number, err := strconv.Atoi(components[4])
+		_, err := strconv.Atoi(components[4])
 		if err != nil {
 			http.Error(res, "Wrong metric value!", http.StatusBadRequest)
-		}
-		_, ok := m.Counter[components[3]]
-		if ok {
-			m.Counter[components[3]] += number
-		} else {
-			m.Counter[components[3]] = number
 		}
 		storage.Update("counter", components[3], components[4])
 	default:
