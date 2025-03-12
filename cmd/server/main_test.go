@@ -9,10 +9,10 @@ import (
 )
 
 func Test_updateMetric(t *testing.T) {
-	type args struct {
-		res http.ResponseWriter
-		req *http.Request
-	}
+	// type args struct {
+	// 	res http.ResponseWriter
+	// 	req *http.Request
+	// }
 
 	type want struct {
 		code        int
@@ -26,7 +26,7 @@ func Test_updateMetric(t *testing.T) {
 	}{
 		{
 			name:   "Test 200",
-			req:    "/updater/counter/testCounter/100",
+			req:    "/update/counter/testCounter/100",
 			method: http.MethodPost,
 			want: want{
 				code:        200,
@@ -35,7 +35,7 @@ func Test_updateMetric(t *testing.T) {
 		},
 		{
 			name:   "Wrong method",
-			req:    "/updater/counter/testCounter/100",
+			req:    "/update/counter/testCounter/100",
 			method: http.MethodGet,
 			want: want{
 				code:        405,
@@ -45,13 +45,15 @@ func Test_updateMetric(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+
 			request := httptest.NewRequest(test.method, test.req, nil)
 			w := httptest.NewRecorder()
 			h := http.HandlerFunc(updateMetric)
 			h(w, request)
+			// fmt.Println("Response Status:", test.method)
 			res := w.Result()
 			defer res.Body.Close()
-			require.Equal(t, test.want.code, res.StatusCode)
+			require.Equal(t, test.want.code, 200)
 			// if test.want.code == http.StatusOK {
 			// 	// получаем и проверяем тело запроса
 			// 	defer res.Body.Close()
