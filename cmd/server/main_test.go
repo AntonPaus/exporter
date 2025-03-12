@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/AntonPaus/exporter/internal/storages/memory"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,7 +14,7 @@ func Test_updateMetric(t *testing.T) {
 	// 	res http.ResponseWriter
 	// 	req *http.Request
 	// }
-
+	storage := memory.NewMemory()
 	type want struct {
 		code        int
 		contentType string
@@ -48,12 +49,12 @@ func Test_updateMetric(t *testing.T) {
 
 			request := httptest.NewRequest(test.method, test.req, nil)
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(updateMetric)
+			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { updateMetric(w, r, storage) })
 			h(w, request)
 			// fmt.Println("Response Status:", test.method)
 			res := w.Result()
 			defer res.Body.Close()
-			require.Equal(t, test.want.code, 200)
+			require.Equal(t, test.want.code, res.StatusCode)
 			// if test.want.code == http.StatusOK {
 			// 	// получаем и проверяем тело запроса
 			// 	defer res.Body.Close()
