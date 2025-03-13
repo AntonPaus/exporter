@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/AntonPaus/exporter/internal/handlers"
 	"github.com/AntonPaus/exporter/internal/storages/memory"
@@ -11,8 +12,13 @@ import (
 )
 
 func main() {
-	ep := flag.String("a", "localhost:8080", "server endpoint")
+	address := new(string)
+	flag.StringVar(address, "a", "localhost:8080", "server endpoint")
 	flag.Parse()
+	osEP := os.Getenv("ADDRESS")
+	if osEP != "" {
+		*address = osEP
+	}
 	storage := memory.NewMemory()
 	r := chi.NewRouter()
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) { handlers.MainPage(w, r, storage) })
@@ -22,5 +28,5 @@ func main() {
 	r.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
 		handlers.GetMetric(w, r, storage, chi.URLParam(r, "type"), chi.URLParam(r, "name"))
 	})
-	log.Fatal(http.ListenAndServe(*ep, r))
+	log.Fatal(http.ListenAndServe(*address, r))
 }

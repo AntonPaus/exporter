@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"os"
 	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -143,12 +145,27 @@ func reportStats(stats chan Metrics, interval time.Duration, ep string) {
 }
 
 func main() {
-	ep := flag.String("a", "localhost:8080", "server endpoint")
-	ri := flag.Int("r", 10, "reportInterval")
-	pi := flag.Int("p", 2, "pollInterval")
+	address := new(string)
+	reportInterval := new(int)
+	pollInterval := new(int)
+	flag.StringVar(address, "a", "localhost:8080", "server endpoint")
+	flag.IntVar(reportInterval, "r", 10, "reportInterval")
+	flag.IntVar(pollInterval, "p", 2, "pollInterval")
 	flag.Parse()
+	osEP := os.Getenv("ADDRESS")
+	osRI := os.Getenv("REPORT_INTERVAL")
+	osPI := os.Getenv("POLL_INTERVAL")
+	if osEP != "" {
+		*address = osEP
+	}
+	if osRI != "" {
+		*reportInterval, _ = strconv.Atoi(osRI)
+	}
+	if osPI != "" {
+		*pollInterval, _ = strconv.Atoi(osPI)
+	}
 	stats := make(chan Metrics, 6)
-	go pollStats(stats, time.Duration(*pi)*time.Second)
-	go reportStats(stats, time.Duration(*ri)*time.Second, *ep)
+	go pollStats(stats, time.Duration(*pollInterval)*time.Second)
+	go reportStats(stats, time.Duration(*reportInterval)*time.Second, *address)
 	select {}
 }
