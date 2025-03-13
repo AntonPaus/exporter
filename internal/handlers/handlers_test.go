@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/AntonPaus/exporter/internal/storages/memory"
@@ -30,16 +31,34 @@ func Test_updateMetric(t *testing.T) {
 			req:    "/update/counter/testCounter/100",
 			method: http.MethodPost,
 			want: want{
-				code:        200,
+				code:        http.StatusOK,
 				contentType: "application/json",
 			},
 		},
 		{
-			name:   "Wrong method",
-			req:    "/update/counter/testCounter/100",
+			name:   "Wrong metric type",
+			req:    "/updater/counterx/testCounter/100",
 			method: http.MethodGet,
 			want: want{
-				code:        405,
+				code:        http.StatusBadRequest,
+				contentType: "application/json",
+			},
+		},
+		{
+			name:   "Wrong metric value",
+			req:    "/updater/counter/testCounter/100.1",
+			method: http.MethodGet,
+			want: want{
+				code:        http.StatusBadRequest,
+				contentType: "application/json",
+			},
+		},
+		{
+			name:   "Wrong metric value",
+			req:    "/updater/counter/testCounter/100.1",
+			method: http.MethodGet,
+			want: want{
+				code:        http.StatusBadRequest,
 				contentType: "application/json",
 			},
 		},
@@ -48,8 +67,11 @@ func Test_updateMetric(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 
 			request := httptest.NewRequest(test.method, test.req, nil)
+			components := strings.Split(test.req, "/")
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { UpdateMetric(w, r, storage) })
+			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				UpdateMetric(w, r, storage, components[2], components[3], components[4])
+			})
 			h(w, request)
 			// fmt.Println("Response Status:", test.method)
 			res := w.Result()

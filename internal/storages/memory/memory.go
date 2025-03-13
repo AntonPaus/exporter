@@ -2,28 +2,27 @@ package memory
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"sync"
 
 	"github.com/AntonPaus/exporter/internal/repository"
 )
 
-type gauge float64
-type counter int64
+type Gauge float64
+type Counter int64
 type Memory struct {
 	repository.Interfacer
 	mu sync.Mutex
-	G  map[string]gauge
-	C  map[string]counter
+	G  map[string]Gauge
+	C  map[string]Counter
 	// a string
 	// b int64
 }
 
 func NewMemory() *Memory {
 	return &Memory{
-		G: make(map[string]gauge),
-		C: make(map[string]counter),
+		G: make(map[string]Gauge),
+		C: make(map[string]Counter),
 	}
 }
 
@@ -36,8 +35,8 @@ func (m *Memory) Update(metricType string, metricName string, metricValue string
 		if err != nil {
 			return errors.New("invalid gauge value")
 		}
-		fmt.Println("->", metricType, metricName, metricValue)
-		m.G[metricName] = gauge(floatValue)
+
+		m.G[metricName] = Gauge(floatValue)
 	case "counter":
 		intValue, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
@@ -45,12 +44,31 @@ func (m *Memory) Update(metricType string, metricName string, metricValue string
 		}
 		_, ok := m.C[metricName]
 		if ok {
-			m.C[metricName] += counter(intValue)
+			m.C[metricName] += Counter(intValue)
 		} else {
-			m.C[metricName] = counter(intValue)
+			m.C[metricName] = Counter(intValue)
 		}
 	default:
 		return errors.New("unknown metric type")
 	}
 	return nil
+}
+
+func (m *Memory) Get(metricType string, metricName string) (any, error) {
+	switch metricType {
+	case "gauge":
+		v, ok := m.G[metricName]
+		if ok {
+			return v, nil
+		}
+		return nil, errors.New("wrong gauge metric name")
+	case "counter":
+		v, ok := m.C[metricName]
+		if ok {
+			return v, nil
+		}
+		return nil, errors.New("wrong counter metric name")
+	default:
+		return nil, errors.New("unknown metric type")
+	}
 }

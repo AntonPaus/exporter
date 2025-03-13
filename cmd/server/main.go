@@ -1,19 +1,23 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/AntonPaus/exporter/internal/handlers"
 	"github.com/AntonPaus/exporter/internal/storages/memory"
+	"github.com/go-chi/chi/v5"
 )
 
 func main() {
 	storage := memory.NewMemory()
-	mux := http.NewServeMux()
-	mux.HandleFunc(`/`, func(w http.ResponseWriter, r *http.Request) { handlers.MainPage(w, r, storage) })
-	mux.HandleFunc(`/update/`, func(w http.ResponseWriter, r *http.Request) { handlers.UpdateMetric(w, r, storage) })
-	err := http.ListenAndServe(`:8080`, mux)
-	if err != nil {
-		panic(err)
-	}
+	r := chi.NewRouter()
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) { handlers.MainPage(w, r, storage) })
+	r.Post("/update/{type}/{name}/{value}", func(w http.ResponseWriter, r *http.Request) {
+		handlers.UpdateMetric(w, r, storage, chi.URLParam(r, "type"), chi.URLParam(r, "name"), chi.URLParam(r, "value"))
+	})
+	r.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
+		handlers.GetMetric(w, r, storage, chi.URLParam(r, "type"), chi.URLParam(r, "name"))
+	})
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
