@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"net/http"
@@ -87,7 +88,7 @@ func pollStats(stats chan Metrics, interval time.Duration) {
 	}
 }
 
-func reportStats(stats chan Metrics, interval time.Duration) {
+func reportStats(stats chan Metrics, interval time.Duration, ep string) {
 	// sleepDuration := time.Duration(reportInterval) * time.Second
 	var receivedStats Metrics
 	var valueStr string
@@ -117,7 +118,7 @@ func reportStats(stats chan Metrics, interval time.Duration) {
 					default:
 						valueStr = fmt.Sprintf("%v", value.Interface())
 					}
-					s := fmt.Sprintf("http://localhost:8080/update/%s/%s/%s", fieldType, field.Name, valueStr)
+					s := fmt.Sprintf("http://%s/update/%s/%s/%s", ep, fieldType, field.Name, valueStr)
 					fmt.Printf("%s\n", s)
 					req, err := http.NewRequest("POST", s, nil)
 					if err != nil {
@@ -142,10 +143,12 @@ func reportStats(stats chan Metrics, interval time.Duration) {
 }
 
 func main() {
-	pollInterval := 2 * time.Second
-	reportInterval := 10 * time.Second
+	ep := flag.String("a", "localhost:8080", "server endpoint")
+	ri := flag.Int("r", 10, "reportInterval")
+	pi := flag.Int("p", 2, "pollInterval")
+	flag.Parse()
 	stats := make(chan Metrics, 6)
-	go pollStats(stats, pollInterval)
-	go reportStats(stats, reportInterval)
+	go pollStats(stats, time.Duration(*pi)*time.Second)
+	go reportStats(stats, time.Duration(*ri)*time.Second, *ep)
 	select {}
 }

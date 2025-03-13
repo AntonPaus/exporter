@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 
@@ -10,6 +11,8 @@ import (
 )
 
 func main() {
+	ep := flag.String("a", "localhost:8080", "server endpoint")
+	flag.Parse()
 	storage := memory.NewMemory()
 	r := chi.NewRouter()
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) { handlers.MainPage(w, r, storage) })
@@ -19,5 +22,5 @@ func main() {
 	r.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
 		handlers.GetMetric(w, r, storage, chi.URLParam(r, "type"), chi.URLParam(r, "name"))
 	})
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServe(*ep, r))
 }
