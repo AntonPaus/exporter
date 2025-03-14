@@ -42,7 +42,7 @@ func MainPage(res http.ResponseWriter, req *http.Request, storage *memory.Memory
 	}
 	res.Header().Set("content-type", "application/json")
 	// устанавливаем код 200
-	res.WriteHeader(http.StatusNotFound)
+	res.WriteHeader(http.StatusOK)
 	// пишем тело ответа
 	res.Write(js1)
 	res.Write(js2)
