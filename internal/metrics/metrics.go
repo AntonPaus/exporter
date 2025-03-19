@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/AntonPaus/exporter/internal/compression"
 	"github.com/AntonPaus/exporter/internal/handlers"
 )
 
@@ -130,14 +131,20 @@ func ReportStats(stats chan Metrics, interval time.Duration, ep string) error {
 					if err != nil {
 						return err
 					}
+					compressedData, err := compression.CompressGzip(jsonData)
+					if err != nil {
+						return err
+					}
 					s := fmt.Sprintf("http://%s/update/", ep)
 					// fmt.Printf("%s\n", s)
-					req, err := http.NewRequest("POST", s, bytes.NewBuffer(jsonData))
+
+					req, err := http.NewRequest("POST", s, bytes.NewBuffer(compressedData))
 					if err != nil {
 						fmt.Println("Error creating request:", err)
 						return err
 					}
 					req.Header.Set("Content-Type", "application/json")
+					req.Header.Set("Content-Encoding", "gzip")
 					client := &http.Client{}
 					resp, err := client.Do(req)
 					if err != nil {

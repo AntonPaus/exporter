@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/AntonPaus/exporter/internal/compression"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -24,6 +25,48 @@ type Metrics struct {
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+}
+
+func (h *Handler) MainPage(w http.ResponseWriter, r *http.Request) {
+	// http.Error(w, "Wrong URL!", http.StatusNotFound)
+	err := r.ParseForm()
+	if err != nil {
+		panic(err)
+	}
+	body := fmt.Sprintf("Method: %s\r\n", r.Method)
+	for k, v := range r.Header {
+		body += fmt.Sprintf("%s: %v\r\n", k, v)
+	}
+	body += "Query parameters ===============\r\n"
+	for k, v := range r.Form {
+		body += fmt.Sprintf("%s: %v\r\n", k, v)
+	}
+	// // кодируем в JSON
+
+	// // var o1 map[string]interface{}
+	// // var l string
+	// js1, err := json.Marshal(h.Storage.g)
+	// if err != nil {
+	// 	http.Error(res, err.Error(), 500)
+	// 	return
+	// }
+	// js2, err := json.Marshal(h.Storage.)
+	// if err != nil {
+	// 	http.Error(res, err.Error(), 500)
+	// 	return
+	// }
+	resp := []byte("Fake body")
+	if r.Header.Get("Accept-Encoding") == "gzip" {
+		resp, err = compression.CompressGzip([]byte(resp))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+	}
+	w.Header().Set("content-type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resp)
 }
 
 func (h *Handler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
@@ -119,6 +162,14 @@ func (h *Handler) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if r.Header.Get("Accept-Encoding") == "gzip" {
+		resp, err = compression.CompressGzip(resp)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(resp)
@@ -155,6 +206,7 @@ func (h *Handler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetMetric(w http.ResponseWriter, r *http.Request) {
 	var mType, mName, valueStr string
+
 	mType = chi.URLParam(r, "type")
 	mName = chi.URLParam(r, "name")
 	value, err := h.Storage.Get(mName, mType)
@@ -163,7 +215,6 @@ func (h *Handler) GetMetric(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Wrong metric value!", http.StatusNotFound)
 		return
 	}
-
 	switch mType {
 	case "gauge":
 		if value, ok := value.(float64); ok {
@@ -183,7 +234,16 @@ func (h *Handler) GetMetric(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 		return
 	}
+	resp := []byte(valueStr)
+	if r.Header.Get("Accept-Encoding") == "gzip" {
+		resp, err = compression.CompressGzip([]byte(valueStr))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+	}
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(valueStr))
+	w.Write(resp)
 }
