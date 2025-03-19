@@ -4,29 +4,24 @@ import (
 	"errors"
 	"strconv"
 	"sync"
-
-	"github.com/AntonPaus/exporter/internal/repository"
 )
 
 type Gauge float64
 type Counter int64
-type Memory struct {
-	repository.Interfacer
+type MemoryStorage struct {
 	mu sync.Mutex
 	G  map[string]Gauge
 	C  map[string]Counter
-	// a string
-	// b int64
 }
 
-func NewMemory() *Memory {
-	return &Memory{
+func NewMemoryStorage() *MemoryStorage {
+	return &MemoryStorage{
 		G: make(map[string]Gauge),
 		C: make(map[string]Counter),
 	}
 }
 
-func (m *Memory) Update(metricType string, metricName string, metricValue string) error {
+func (m *MemoryStorage) Update(metricType string, metricName string, metricValue string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	switch metricType {
@@ -54,7 +49,7 @@ func (m *Memory) Update(metricType string, metricName string, metricValue string
 	return nil
 }
 
-func (m *Memory) Get(metricType string, metricName string) (any, error) {
+func (m *MemoryStorage) Get(metricType string, metricName string) (any, error) {
 	switch metricType {
 	case "gauge":
 		v, ok := m.G[metricName]

@@ -1,4 +1,4 @@
-package main
+package metrics
 
 import (
 	"testing"
@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_pollStats(t *testing.T) {
+func TestPollStats(t *testing.T) {
 	stats := make(chan Metrics, 1)
-	go pollStats(stats, 2*time.Second)
+	go PollStats(stats, 2*time.Second)
 	time.Sleep(4 * time.Second)
 	receivedStats := <-stats
 	assert.NotZero(t, receivedStats.Alloc)

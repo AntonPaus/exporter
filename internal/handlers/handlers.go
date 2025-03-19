@@ -9,10 +9,7 @@ import (
 	"github.com/AntonPaus/exporter/internal/storages/memory"
 )
 
-type gauge float64
-type counter int64
-
-func MainPage(res http.ResponseWriter, req *http.Request, storage *memory.Memory) {
+func MainPage(res http.ResponseWriter, req *http.Request, storage *memory.MemoryStorage) {
 	// http.Error(res, "Wrong URL!", http.StatusNotFound)
 	err := req.ParseForm()
 	if err != nil {
@@ -48,7 +45,7 @@ func MainPage(res http.ResponseWriter, req *http.Request, storage *memory.Memory
 	res.Write(js2)
 }
 
-func UpdateMetric(res http.ResponseWriter, req *http.Request, storage *memory.Memory, mType string, mName string, mValue string) {
+func UpdateMetric(res http.ResponseWriter, req *http.Request, storage *memory.MemoryStorage, mType string, mName string, mValue string) {
 	// if req.Method != http.MethodPost {
 	// 	http.Error(res, "Only Post requests are allowed!", http.StatusMethodNotAllowed)
 	// 	return
@@ -78,7 +75,7 @@ func UpdateMetric(res http.ResponseWriter, req *http.Request, storage *memory.Me
 	res.Write([]byte(req.URL.Path))
 }
 
-func GetMetric(w http.ResponseWriter, r *http.Request, storage *memory.Memory, mType string, mName string) {
+func GetMetric(w http.ResponseWriter, r *http.Request, storage *memory.MemoryStorage, mType string, mName string) {
 	var valueStr string
 	value, err := storage.Get(mType, mName)
 	if err != nil {

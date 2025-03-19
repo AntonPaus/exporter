@@ -15,7 +15,7 @@ func Test_updateMetric(t *testing.T) {
 	// 	res http.ResponseWriter
 	// 	req *http.Request
 	// }
-	storage := memory.NewMemory()
+	storage := memory.NewMemoryStorage()
 	type want struct {
 		code        int
 		contentType string

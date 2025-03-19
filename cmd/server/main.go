@@ -4,22 +4,25 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	"os"
 
+	"github.com/AntonPaus/exporter/internal/config"
 	"github.com/AntonPaus/exporter/internal/handlers"
 	"github.com/AntonPaus/exporter/internal/storages/memory"
 	"github.com/go-chi/chi/v5"
 )
 
 func main() {
+	cfg, err := config.NewConfig()
+	if err != nil {
+		log.Fatalf("Config error: %s", err)
+	}
 	address := new(string)
 	flag.StringVar(address, "a", "localhost:8080", "server endpoint")
 	flag.Parse()
-	osEP := os.Getenv("ADDRESS")
-	if osEP != "" {
-		*address = osEP
+	if cfg.Address != "" {
+		*address = cfg.Address
 	}
-	storage := memory.NewMemory()
+	storage := memory.NewMemoryStorage()
 	r := chi.NewRouter()
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) { handlers.MainPage(w, r, storage) })
 	r.Post("/update/{type}/{name}/{value}", func(w http.ResponseWriter, r *http.Request) {
