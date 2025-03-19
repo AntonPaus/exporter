@@ -1,6 +1,9 @@
 package metrics
 
 import (
+	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
@@ -8,6 +11,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/AntonPaus/exporter/internal/handlers"
 )
 
 type gauge float64
@@ -79,21 +84,23 @@ func PollStats(stats chan Metrics, interval time.Duration) {
 		savedStats.StackSys = gauge(mem.StackSys)
 		savedStats.Sys = gauge(mem.Sys)
 		savedStats.TotalAlloc = gauge(mem.TotalAlloc)
-		savedStats.PollCount += 1
+		savedStats.PollCount = 1
 		savedStats.RandomValue = gauge(rand.Float64())
-		// fmt.Printf("Alloc: %.2f MB\nTotalAlloc: %.2f MB\nPollCount = %d\nRand = %.2f\n\n", savedStats.Alloc, savedStats.TotalAlloc, savedStats.PollCount, savedStats.RandomValue)
 		fmt.Printf("Poll completed\n")
 		stats <- savedStats
 	}
 }
 
-func ReportStats(stats chan Metrics, interval time.Duration, ep string) {
+func ReportStats(stats chan Metrics, interval time.Duration, ep string) error {
 	var receivedStats Metrics
-	var valueStr string
+	var c int64
+	var g float64
+	// var valueStr string
 	for {
 		time.Sleep(interval)
 	innerLoop:
 		for {
+			errFound := false
 			select {
 			case r2 := <-stats:
 				receivedStats = r2
@@ -101,34 +108,47 @@ func ReportStats(stats chan Metrics, interval time.Duration, ep string) {
 				statsType := reflect.TypeOf(receivedStats)
 				statsValue := reflect.ValueOf(receivedStats)
 				for i := 0; i < statsType.NumField(); i++ {
+					var m handlers.Metrics
 					field := statsType.Field(i)
 					value := statsValue.Field(i)
 					fieldTypeParts := strings.Split(field.Type.String(), ".")
 					fieldType := fieldTypeParts[len(fieldTypeParts)-1]
-
+					m.ID, m.MType = field.Name, fieldType
 					switch value.Kind() {
 					case reflect.Int64:
-						valueStr = fmt.Sprintf("%d", value.Int())
+						c = int64(value.Int())
+						m.Delta = &c
+						// valueStr = fmt.Sprintf("%d", value.Int())
 					case reflect.Float64:
-						valueStr = fmt.Sprintf("%.2f", value.Float())
+						g = float64(value.Float())
+						m.Value = &g
 					default:
-						valueStr = fmt.Sprintf("%v", value.Interface())
+						return errors.New("unsupported type")
 					}
-					s := fmt.Sprintf("http://%s/update/%s/%s/%s", ep, fieldType, field.Name, valueStr)
-					fmt.Printf("%s\n", s)
-					req, err := http.NewRequest("POST", s, nil)
+					// fmt.Println(m)
+					jsonData, err := json.Marshal(m)
+					if err != nil {
+						return err
+					}
+					s := fmt.Sprintf("http://%s/update/", ep)
+					// fmt.Printf("%s\n", s)
+					req, err := http.NewRequest("POST", s, bytes.NewBuffer(jsonData))
 					if err != nil {
 						fmt.Println("Error creating request:", err)
-						return
+						return err
 					}
-					req.Header.Set("Content-Type", "text/plain")
+					req.Header.Set("Content-Type", "application/json")
 					client := &http.Client{}
 					resp, err := client.Do(req)
 					if err != nil {
 						fmt.Println("Error making HTTP request:", err)
-						return
+						errFound = true
+						break
 					}
 					defer resp.Body.Close()
+				}
+				if !errFound {
+					fmt.Println("Sending completed")
 				}
 				break innerLoop
 			}

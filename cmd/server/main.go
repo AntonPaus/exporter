@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"flag"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -12,6 +14,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
+
+type Handler struct {
+	Storage memory.MemoryStorage
+}
 
 var sugar zap.SugaredLogger
 
@@ -61,15 +67,18 @@ func main() {
 		"Starting server",
 		"addr", *address,
 	)
+
+	h := handlers.Handler{
+		Storage: storage,
+	}
+
 	r := chi.NewRouter()
 	r.Use(WithLogging)
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) { handlers.MainPage(w, r, storage) })
-	r.Post("/update/{type}/{name}/{value}", func(w http.ResponseWriter, r *http.Request) {
-		handlers.UpdateMetric(w, r, storage, chi.URLParam(r, "type"), chi.URLParam(r, "name"), chi.URLParam(r, "value"))
-	})
-	r.Get("/value/{type}/{name}", func(w http.ResponseWriter, r *http.Request) {
-		handlers.GetMetric(w, r, storage, chi.URLParam(r, "type"), chi.URLParam(r, "name"))
-	})
+	// r.Get("/", h.MainPage)
+	r.Post("/update/", h.UpdateMetricJSON)
+	r.Post("/value/", h.GetMetricJSON)
+	r.Get("/value/{type}/{name}", h.GetMetric)
+	r.Post("/update/{type}/{name}/{value}", h.UpdateMetric)
 	log.Fatal(http.ListenAndServe(*address, r))
 }
 
@@ -85,14 +94,19 @@ func WithLogging(h http.Handler) http.Handler {
 			ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
 			responseData:   responseData,
 		}
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("Error reading request body: %v", err)
+		}
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		h.ServeHTTP(&lw, r) // внедряем реализацию http.ResponseWriter
-
 		duration := time.Since(start)
 		sugar.Infoln(
 			"uri", r.RequestURI,
 			"method", r.Method,
 			"status", responseData.status, // получаем перехваченный код статуса ответа
 			"duration", duration,
+			"data", string(bodyBytes),
 			"size", responseData.size, // получаем перехваченный размер ответа
 		)
 	}

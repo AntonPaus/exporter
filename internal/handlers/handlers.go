@@ -1,92 +1,184 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 
-	"github.com/AntonPaus/exporter/internal/storages/memory"
+	"github.com/go-chi/chi/v5"
 )
 
-func MainPage(res http.ResponseWriter, req *http.Request, storage *memory.MemoryStorage) {
-	// http.Error(res, "Wrong URL!", http.StatusNotFound)
-	err := req.ParseForm()
-	if err != nil {
-		panic(err)
-	}
-	body := fmt.Sprintf("Method: %s\r\n", req.Method)
-	for k, v := range req.Header {
-		body += fmt.Sprintf("%s: %v\r\n", k, v)
-	}
-	body += "Query parameters ===============\r\n"
-	for k, v := range req.Form {
-		body += fmt.Sprintf("%s: %v\r\n", k, v)
-	}
-	// кодируем в JSON
-
-	// var o1 map[string]interface{}
-	// var l string
-	js1, err := json.Marshal(storage.G)
-	if err != nil {
-		http.Error(res, err.Error(), 500)
-		return
-	}
-	js2, err := json.Marshal(storage.C)
-	if err != nil {
-		http.Error(res, err.Error(), 500)
-		return
-	}
-	res.Header().Set("content-type", "application/json")
-	// устанавливаем код 200
-	res.WriteHeader(http.StatusOK)
-	// пишем тело ответа
-	res.Write(js1)
-	res.Write(js2)
+type Repository interface {
+	Get(mType string, mName string) (any, error)
+	Update(mType string, mName string, mValue any) (any, error)
 }
 
-func UpdateMetric(res http.ResponseWriter, req *http.Request, storage *memory.MemoryStorage, mType string, mName string, mValue string) {
-	// if req.Method != http.MethodPost {
-	// 	http.Error(res, "Only Post requests are allowed!", http.StatusMethodNotAllowed)
-	// 	return
-	// }
-	// components := strings.Split(req.URL.Path, "/")
-	// if len(components) != 5 {
-	// 	http.Error(res, "Wrong URL!", http.StatusNotFound)
-	// 	return
-	// }
-	switch mType {
+type Handler struct {
+	Storage Repository
+}
+
+type Metrics struct {
+	ID    string   `json:"id"`              // имя метрики
+	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
+	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
+	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+}
+
+func (h *Handler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
+	var buf bytes.Buffer
+	var metrics Metrics
+	if r.Header.Get("Content-Type") != "application/json" {
+		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)
+		return
+	}
+	_, err := buf.ReadFrom(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err = json.Unmarshal(buf.Bytes(), &metrics); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	switch metrics.MType {
 	case "gauge":
-		_, err := strconv.ParseFloat(mValue, 64)
+		v, err := h.Storage.Update(metrics.ID, metrics.MType, *metrics.Value)
 		if err != nil {
-			http.Error(res, "Wrong metric value!", http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
+		*metrics.Value = v.(float64)
 	case "counter":
-		_, err := strconv.Atoi(mValue)
+
+		v, err := h.Storage.Update(metrics.ID, metrics.MType, *metrics.Delta)
 		if err != nil {
-			http.Error(res, "Wrong metric value!", http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
+		*metrics.Delta = v.(int64)
 	default:
-		http.Error(res, "Wrong metric type!", http.StatusBadRequest)
+		http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 		return
 	}
-	storage.Update(mType, mName, mValue)
-	res.WriteHeader(http.StatusOK)
-	res.Write([]byte(req.URL.Path))
+	resp, err := json.Marshal(metrics)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resp)
 }
 
-func GetMetric(w http.ResponseWriter, r *http.Request, storage *memory.MemoryStorage, mType string, mName string) {
-	var valueStr string
-	value, err := storage.Get(mType, mName)
+func (h *Handler) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
+	var buf bytes.Buffer
+	var metrics Metrics
+	if r.Header.Get("Content-Type") != "application/json" {
+		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)
+		return
+	}
+	_, err := buf.ReadFrom(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err = json.Unmarshal(buf.Bytes(), &metrics); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	value, err := h.Storage.Get(metrics.ID, metrics.MType)
 	if err != nil {
 		http.Error(w, "Wrong metric value!", http.StatusNotFound)
 		return
 	}
-	switch v := value.(type) {
-	case memory.Gauge:
-		valueStr = strconv.FormatFloat(float64(v), 'f', -1, 64)
-	case memory.Counter:
-		valueStr = strconv.FormatInt(int64(v), 10)
+	switch metrics.MType {
+	case "gauge":
+		if value, ok := value.(float64); ok {
+			metrics.Value = &value
+		} else {
+			http.Error(w, "Unsupported value type", http.StatusInternalServerError)
+			return
+		}
+	case "counter":
+		if value, ok := value.(int64); ok {
+			metrics.Delta = &value
+		} else {
+			http.Error(w, "Unsupported value type", http.StatusInternalServerError)
+			return
+		}
+		*metrics.Delta = value.(int64)
+	default:
+		http.Error(w, "Unsupported value type", http.StatusInternalServerError)
+		return
+	}
+	resp, err := json.Marshal(metrics)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(resp)
+}
+
+func (h *Handler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
+	var mType, mName, mValue string
+	mType = chi.URLParam(r, "type")
+	mName = chi.URLParam(r, "name")
+	mValue = chi.URLParam(r, "value")
+	fmt.Println(mValue)
+	switch mType {
+	case "gauge":
+		g, err := strconv.ParseFloat(mValue, 64)
+		if err != nil {
+			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
+			return
+		}
+		h.Storage.Update(mName, mType, g)
+	case "counter":
+		c, err := strconv.ParseInt(mValue, 10, 64)
+		if err != nil {
+			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
+			return
+		}
+		h.Storage.Update(mName, mType, c)
+	default:
+		http.Error(w, "Wrong metric type!", http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(r.URL.Path))
+}
+
+func (h *Handler) GetMetric(w http.ResponseWriter, r *http.Request) {
+	var mType, mName, valueStr string
+	mType = chi.URLParam(r, "type")
+	mName = chi.URLParam(r, "name")
+	value, err := h.Storage.Get(mName, mType)
+	fmt.Println(value)
+	if err != nil {
+		http.Error(w, "Wrong metric value!", http.StatusNotFound)
+		return
+	}
+
+	switch mType {
+	case "gauge":
+		if value, ok := value.(float64); ok {
+			valueStr = strconv.FormatFloat(float64(value), 'f', -1, 64)
+		} else {
+			http.Error(w, "Unsupported value type", http.StatusInternalServerError)
+			return
+		}
+	case "counter":
+		if value, ok := value.(int64); ok {
+			valueStr = strconv.FormatInt(int64(value), 10)
+		} else {
+			http.Error(w, "Unsupported value type", http.StatusInternalServerError)
+			return
+		}
 	default:
 		http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 		return

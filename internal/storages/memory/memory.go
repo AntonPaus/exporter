@@ -2,67 +2,54 @@ package memory
 
 import (
 	"errors"
-	"strconv"
 	"sync"
 )
 
-type Gauge float64
-type Counter int64
+type gauge float64
+type counter int64
+
 type MemoryStorage struct {
 	mu sync.Mutex
-	G  map[string]Gauge
-	C  map[string]Counter
+	g  map[string]gauge
+	c  map[string]counter
 }
 
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
-		G: make(map[string]Gauge),
-		C: make(map[string]Counter),
+		g: make(map[string]gauge),
+		c: make(map[string]counter),
 	}
 }
 
-func (m *MemoryStorage) Update(metricType string, metricName string, metricValue string) error {
+func (m *MemoryStorage) Update(mName string, mType string, mValue any) (any, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	switch metricType {
+	switch mType {
 	case "gauge":
-		floatValue, err := strconv.ParseFloat(metricValue, 64)
-		if err != nil {
-			return errors.New("invalid gauge value")
-		}
-
-		m.G[metricName] = Gauge(floatValue)
+		m.g[mName] = gauge(mValue.(float64))
+		return float64(m.g[mName]), nil
 	case "counter":
-		intValue, err := strconv.ParseInt(metricValue, 10, 64)
-		if err != nil {
-			return errors.New("invalid counter value")
-		}
-		_, ok := m.C[metricName]
-		if ok {
-			m.C[metricName] += Counter(intValue)
-		} else {
-			m.C[metricName] = Counter(intValue)
-		}
+		m.c[mName] += counter(mValue.(int64))
+		return int64(m.c[mName]), nil
 	default:
-		return errors.New("unknown metric type")
+		return nil, errors.New("something went wrong")
 	}
-	return nil
 }
 
-func (m *MemoryStorage) Get(metricType string, metricName string) (any, error) {
-	switch metricType {
+func (m *MemoryStorage) Get(mName string, mType string) (any, error) {
+	switch mType {
 	case "gauge":
-		v, ok := m.G[metricName]
+		v, ok := m.g[mName]
 		if ok {
-			return v, nil
+			return float64(v), nil
 		}
-		return nil, errors.New("wrong gauge metric name")
+		return nil, errors.New("no metric found")
 	case "counter":
-		v, ok := m.C[metricName]
+		v, ok := m.c[mName]
 		if ok {
-			return v, nil
+			return int64(v), nil
 		}
-		return nil, errors.New("wrong counter metric name")
+		return nil, errors.New("no metric found")
 	default:
 		return nil, errors.New("unknown metric type")
 	}
