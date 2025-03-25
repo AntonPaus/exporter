@@ -1,18 +1,23 @@
-package handlers
+package logger
 
 import (
+	"bytes"
+	"io"
+	"log"
 	"net/http"
 	"time"
-)
 
-type loggingResponseWriter struct {
-	http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
-	responseData        *responseData
-}
+	"go.uber.org/zap"
+)
 
 type responseData struct {
 	status int
 	size   int
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter // встраиваем оригинальный http.ResponseWriter
+	responseData        *responseData
 }
 
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
@@ -29,6 +34,17 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 }
 
 func WithLogging(h http.Handler) http.Handler {
+	var sugar zap.SugaredLogger
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		// вызываем панику, если ошибка
+		panic(err)
+	}
+	defer logger.Sync()
+	sugar = *logger.Sugar()
+	sugar.Infow(
+		"Starting server",
+	)
 	logFn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -40,14 +56,20 @@ func WithLogging(h http.Handler) http.Handler {
 			ResponseWriter: w, // встраиваем оригинальный http.ResponseWriter
 			responseData:   responseData,
 		}
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("Error reading request body: %v", err)
+		}
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		h.ServeHTTP(&lw, r) // внедряем реализацию http.ResponseWriter
-
 		duration := time.Since(start)
 		sugar.Infoln(
 			"uri", r.RequestURI,
 			"method", r.Method,
+			"compression", r.Header.Get("Content-Encoding"),
 			"status", responseData.status, // получаем перехваченный код статуса ответа
 			"duration", duration,
+			"data", string(bodyBytes),
 			"size", responseData.size, // получаем перехваченный размер ответа
 		)
 	}

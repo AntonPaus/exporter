@@ -27,7 +27,7 @@ func TestMemoryStorage_Get(t *testing.T) {
 	// }
 	// for _, tt := range tests {
 	// }
-	storage := NewMemoryStorage()
+	storage, _ := NewMemoryStorage(300, "storage.txt", false)
 	t.Run("Gauge", func(t *testing.T) {
 		got1, err := storage.Update("g1", "gauge", 3.1)
 		require.NoError(t, err)

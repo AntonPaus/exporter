@@ -210,7 +210,6 @@ func (h *Handler) GetMetric(w http.ResponseWriter, r *http.Request) {
 	mType = chi.URLParam(r, "type")
 	mName = chi.URLParam(r, "name")
 	value, err := h.Storage.Get(mName, mType)
-	fmt.Println(value)
 	if err != nil {
 		http.Error(w, "Wrong metric value!", http.StatusNotFound)
 		return
