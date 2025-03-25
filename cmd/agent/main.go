@@ -29,8 +29,9 @@ func main() {
 	if osPI != "" {
 		*pollInterval, _ = strconv.Atoi(osPI)
 	}
-	stats := make(chan metrics.Metrics, 60)
-	go metrics.PollStats(stats, time.Duration(*pollInterval)*time.Second)
-	go metrics.ReportStats(stats, time.Duration(*reportInterval)*time.Second, *address)
+
+	m := metrics.NewMetrics()
+	go m.Poll(time.Duration(*pollInterval) * time.Second)
+	go m.Report(time.Duration(*reportInterval)*time.Second, *address)
 	select {}
 }

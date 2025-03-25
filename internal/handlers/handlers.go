@@ -11,6 +11,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+const (
+	MetricTypeGauge   = "gauge"
+	MetricTypeCounter = "counter"
+)
+
 type Repository interface {
 	Get(mType string, mName string) (any, error)
 	Update(mType string, mName string, mValue any) (any, error)
@@ -28,33 +33,10 @@ type Metrics struct {
 }
 
 func (h *Handler) MainPage(w http.ResponseWriter, r *http.Request) {
-	// http.Error(w, "Wrong URL!", http.StatusNotFound)
 	err := r.ParseForm()
 	if err != nil {
 		panic(err)
 	}
-	body := fmt.Sprintf("Method: %s\r\n", r.Method)
-	for k, v := range r.Header {
-		body += fmt.Sprintf("%s: %v\r\n", k, v)
-	}
-	body += "Query parameters ===============\r\n"
-	for k, v := range r.Form {
-		body += fmt.Sprintf("%s: %v\r\n", k, v)
-	}
-	// // кодируем в JSON
-
-	// // var o1 map[string]interface{}
-	// // var l string
-	// js1, err := json.Marshal(h.Storage.g)
-	// if err != nil {
-	// 	http.Error(res, err.Error(), 500)
-	// 	return
-	// }
-	// js2, err := json.Marshal(h.Storage.)
-	// if err != nil {
-	// 	http.Error(res, err.Error(), 500)
-	// 	return
-	// }
 	resp := []byte("Fake body")
 	if r.Header.Get("Accept-Encoding") == "gzip" {
 		resp, err = compression.CompressGzip([]byte(resp))
@@ -72,6 +54,7 @@ func (h *Handler) MainPage(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	var metrics Metrics
+	var ok bool
 	if r.Header.Get("Content-Type") != "application/json" {
 		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)
 		return
@@ -86,21 +69,26 @@ func (h *Handler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch metrics.MType {
-	case "gauge":
+	case MetricTypeGauge:
 		v, err := h.Storage.Update(metrics.ID, metrics.MType, *metrics.Value)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		*metrics.Value = v.(float64)
-	case "counter":
-
+		if *metrics.Value, ok = v.(float64); !ok {
+			http.Error(w, "value is not gauge type", http.StatusBadRequest)
+			return
+		}
+	case MetricTypeCounter:
 		v, err := h.Storage.Update(metrics.ID, metrics.MType, *metrics.Delta)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		*metrics.Delta = v.(int64)
+		if *metrics.Delta, ok = v.(int64); !ok {
+			http.Error(w, "value is not counter type", http.StatusBadRequest)
+			return
+		}
 	default:
 		http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 		return
@@ -138,14 +126,14 @@ func (h *Handler) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch metrics.MType {
-	case "gauge":
+	case MetricTypeGauge:
 		if value, ok := value.(float64); ok {
 			metrics.Value = &value
 		} else {
 			http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 			return
 		}
-	case "counter":
+	case MetricTypeCounter:
 		if value, ok := value.(int64); ok {
 			metrics.Delta = &value
 		} else {
@@ -182,14 +170,14 @@ func (h *Handler) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	mValue = chi.URLParam(r, "value")
 	fmt.Println(mValue)
 	switch mType {
-	case "gauge":
+	case MetricTypeGauge:
 		g, err := strconv.ParseFloat(mValue, 64)
 		if err != nil {
 			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
 			return
 		}
 		h.Storage.Update(mName, mType, g)
-	case "counter":
+	case MetricTypeCounter:
 		c, err := strconv.ParseInt(mValue, 10, 64)
 		if err != nil {
 			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
@@ -210,20 +198,19 @@ func (h *Handler) GetMetric(w http.ResponseWriter, r *http.Request) {
 	mType = chi.URLParam(r, "type")
 	mName = chi.URLParam(r, "name")
 	value, err := h.Storage.Get(mName, mType)
-	fmt.Println(value)
 	if err != nil {
 		http.Error(w, "Wrong metric value!", http.StatusNotFound)
 		return
 	}
 	switch mType {
-	case "gauge":
+	case MetricTypeGauge:
 		if value, ok := value.(float64); ok {
 			valueStr = strconv.FormatFloat(float64(value), 'f', -1, 64)
 		} else {
 			http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 			return
 		}
-	case "counter":
+	case MetricTypeCounter:
 		if value, ok := value.(int64); ok {
 			valueStr = strconv.FormatInt(int64(value), 10)
 		} else {
