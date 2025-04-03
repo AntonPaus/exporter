@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -8,12 +9,12 @@ import (
 )
 
 func TestPollStats(t *testing.T) {
-	stats := make(chan Metrics, 1)
-	go PollStats(stats, 2*time.Second)
-	time.Sleep(4 * time.Second)
-	receivedStats := <-stats
-	assert.NotZero(t, receivedStats.Alloc)
-	assert.NotZero(t, receivedStats.Frees)
-	assert.NotZero(t, receivedStats.TotalAlloc)
-	assert.NotZero(t, receivedStats.PollCount)
+	m := NewMetrics()
+	go m.Poll(time.Duration(1 * time.Second))
+	time.Sleep(2 * time.Second)
+	fmt.Println(m.values)
+	assert.NotZero(t, m.values.Alloc)
+	assert.NotZero(t, m.values.Frees)
+	assert.NotZero(t, m.values.TotalAlloc)
+	assert.NotZero(t, m.values.PollCount)
 }

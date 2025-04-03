@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
@@ -8,130 +10,156 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/AntonPaus/exporter/internal/compression"
+	"github.com/AntonPaus/exporter/internal/handlers"
 )
 
 type gauge float64
 type counter int64
 
 type Metrics struct {
-	Alloc         gauge
-	BuckHashSys   gauge
-	Frees         gauge
-	GCCPUFraction gauge
-	GCSys         gauge
-	HeapAlloc     gauge
-	HeapIdle      gauge
-	HeapInuse     gauge
-	HeapObjects   gauge
-	HeapReleased  gauge
-	HeapSys       gauge
-	LastGC        gauge
-	Lookups       gauge
-	MCacheInuse   gauge
-	MCacheSys     gauge
-	MSpanInuse    gauge
-	MSpanSys      gauge
-	Mallocs       gauge
-	NextGC        gauge
-	NumForcedGC   gauge
-	NumGC         gauge
-	OtherSys      gauge
-	PauseTotalNs  gauge
-	StackInuse    gauge
-	StackSys      gauge
-	Sys           gauge
-	TotalAlloc    gauge
-	RandomValue   gauge
-	PollCount     counter
+	values struct {
+		Alloc         gauge
+		BuckHashSys   gauge
+		Frees         gauge
+		GCCPUFraction gauge
+		GCSys         gauge
+		HeapAlloc     gauge
+		HeapIdle      gauge
+		HeapInuse     gauge
+		HeapObjects   gauge
+		HeapReleased  gauge
+		HeapSys       gauge
+		LastGC        gauge
+		Lookups       gauge
+		MCacheInuse   gauge
+		MCacheSys     gauge
+		MSpanInuse    gauge
+		MSpanSys      gauge
+		Mallocs       gauge
+		NextGC        gauge
+		NumForcedGC   gauge
+		NumGC         gauge
+		OtherSys      gauge
+		PauseTotalNs  gauge
+		StackInuse    gauge
+		StackSys      gauge
+		Sys           gauge
+		TotalAlloc    gauge
+		RandomValue   gauge
+		PollCount     counter
+	}
 }
 
-func PollStats(stats chan Metrics, interval time.Duration) {
+func NewMetrics() *Metrics {
+	return &Metrics{}
+}
+
+func (m *Metrics) Poll(interval time.Duration) {
 	var mem runtime.MemStats
-	var savedStats Metrics
-	savedStats.PollCount = 0
 	for {
 		time.Sleep(interval)
 		runtime.ReadMemStats(&mem)
-		savedStats.Alloc = gauge(mem.Alloc)
-		savedStats.BuckHashSys = gauge(mem.BuckHashSys)
-		savedStats.Frees = gauge(mem.Frees)
-		savedStats.GCCPUFraction = gauge(mem.GCCPUFraction)
-		savedStats.GCSys = gauge(mem.GCSys)
-		savedStats.HeapAlloc = gauge(mem.HeapAlloc)
-		savedStats.HeapIdle = gauge(mem.HeapIdle)
-		savedStats.HeapInuse = gauge(mem.HeapInuse)
-		savedStats.HeapObjects = gauge(mem.HeapObjects)
-		savedStats.HeapReleased = gauge(mem.HeapReleased)
-		savedStats.HeapSys = gauge(mem.HeapSys)
-		savedStats.LastGC = gauge(mem.LastGC)
-		savedStats.Lookups = gauge(mem.Lookups)
-		savedStats.MCacheInuse = gauge(mem.MCacheInuse)
-		savedStats.MCacheSys = gauge(mem.MCacheSys)
-		savedStats.MSpanInuse = gauge(mem.MSpanInuse)
-		savedStats.MSpanSys = gauge(mem.MSpanSys)
-		savedStats.Mallocs = gauge(mem.Mallocs)
-		savedStats.NextGC = gauge(mem.NextGC)
-		savedStats.NumForcedGC = gauge(mem.NumForcedGC)
-		savedStats.NumGC = gauge(mem.NumGC)
-		savedStats.OtherSys = gauge(mem.OtherSys)
-		savedStats.PauseTotalNs = gauge(mem.PauseTotalNs)
-		savedStats.StackInuse = gauge(mem.StackInuse)
-		savedStats.StackSys = gauge(mem.StackSys)
-		savedStats.Sys = gauge(mem.Sys)
-		savedStats.TotalAlloc = gauge(mem.TotalAlloc)
-		savedStats.PollCount += 1
-		savedStats.RandomValue = gauge(rand.Float64())
-		// fmt.Printf("Alloc: %.2f MB\nTotalAlloc: %.2f MB\nPollCount = %d\nRand = %.2f\n\n", savedStats.Alloc, savedStats.TotalAlloc, savedStats.PollCount, savedStats.RandomValue)
+		m.values.Alloc = gauge(mem.Alloc)
+		m.values.BuckHashSys = gauge(mem.BuckHashSys)
+		m.values.Frees = gauge(mem.Frees)
+		m.values.GCCPUFraction = gauge(mem.GCCPUFraction)
+		m.values.GCSys = gauge(mem.GCSys)
+		m.values.HeapAlloc = gauge(mem.HeapAlloc)
+		m.values.HeapIdle = gauge(mem.HeapIdle)
+		m.values.HeapInuse = gauge(mem.HeapInuse)
+		m.values.HeapObjects = gauge(mem.HeapObjects)
+		m.values.HeapReleased = gauge(mem.HeapReleased)
+		m.values.HeapSys = gauge(mem.HeapSys)
+		m.values.LastGC = gauge(mem.LastGC)
+		m.values.Lookups = gauge(mem.Lookups)
+		m.values.MCacheInuse = gauge(mem.MCacheInuse)
+		m.values.MCacheSys = gauge(mem.MCacheSys)
+		m.values.MSpanInuse = gauge(mem.MSpanInuse)
+		m.values.MSpanSys = gauge(mem.MSpanSys)
+		m.values.Mallocs = gauge(mem.Mallocs)
+		m.values.NextGC = gauge(mem.NextGC)
+		m.values.NumForcedGC = gauge(mem.NumForcedGC)
+		m.values.NumGC = gauge(mem.NumGC)
+		m.values.OtherSys = gauge(mem.OtherSys)
+		m.values.PauseTotalNs = gauge(mem.PauseTotalNs)
+		m.values.StackInuse = gauge(mem.StackInuse)
+		m.values.StackSys = gauge(mem.StackSys)
+		m.values.Sys = gauge(mem.Sys)
+		m.values.TotalAlloc = gauge(mem.TotalAlloc)
+		m.values.PollCount = 1
+		m.values.RandomValue = gauge(rand.Float64())
 		fmt.Printf("Poll completed\n")
-		stats <- savedStats
 	}
 }
 
-func ReportStats(stats chan Metrics, interval time.Duration, ep string) {
-	var receivedStats Metrics
-	var valueStr string
+func (m *Metrics) Report(interval time.Duration, ep string) {
+	var c int64
+	var g float64
 	for {
+		errFound := false
 		time.Sleep(interval)
-	innerLoop:
-		for {
-			select {
-			case r2 := <-stats:
-				receivedStats = r2
+		statsType := reflect.TypeOf(m.values)
+		statsValue := reflect.ValueOf(m.values)
+		for i := range statsType.NumField() {
+			var h handlers.Metrics
+			field := statsType.Field(i)
+			value := statsValue.Field(i)
+			fieldTypeParts := strings.Split(field.Type.String(), ".")
+			fieldType := fieldTypeParts[len(fieldTypeParts)-1]
+			h.ID, h.MType = field.Name, fieldType
+			switch value.Kind() {
+			case reflect.Int64:
+				c = int64(value.Int())
+				h.Delta = &c
+			case reflect.Float64:
+				g = float64(value.Float())
+				h.Value = &g
 			default:
-				statsType := reflect.TypeOf(receivedStats)
-				statsValue := reflect.ValueOf(receivedStats)
-				for i := 0; i < statsType.NumField(); i++ {
-					field := statsType.Field(i)
-					value := statsValue.Field(i)
-					fieldTypeParts := strings.Split(field.Type.String(), ".")
-					fieldType := fieldTypeParts[len(fieldTypeParts)-1]
-
-					switch value.Kind() {
-					case reflect.Int64:
-						valueStr = fmt.Sprintf("%d", value.Int())
-					case reflect.Float64:
-						valueStr = fmt.Sprintf("%.2f", value.Float())
-					default:
-						valueStr = fmt.Sprintf("%v", value.Interface())
-					}
-					s := fmt.Sprintf("http://%s/update/%s/%s/%s", ep, fieldType, field.Name, valueStr)
-					fmt.Printf("%s\n", s)
-					req, err := http.NewRequest("POST", s, nil)
-					if err != nil {
-						fmt.Println("Error creating request:", err)
-						return
-					}
-					req.Header.Set("Content-Type", "text/plain")
-					client := &http.Client{}
-					resp, err := client.Do(req)
-					if err != nil {
-						fmt.Println("Error making HTTP request:", err)
-						return
-					}
-					defer resp.Body.Close()
-				}
-				break innerLoop
+				fmt.Printf("Value type error\nSkipping...\n")
+			}
+			jsonData, err := json.Marshal(h)
+			if err != nil {
+				fmt.Printf("JSON Marshaling error: %v\nSkipping...\n", err)
+			}
+			compressedData, err := compression.CompressGzip(jsonData)
+			if err != nil {
+				fmt.Printf("Compression error: %v\nSkipping...\n", err)
+			}
+			if err := sendMetric(compressedData, ep); err != nil {
+				fmt.Println("Error sending HTTP request:", err)
+				errFound = true
+				break
 			}
 		}
+		if !errFound {
+			fmt.Println("Report completed")
+		}
 	}
+}
+
+func sendMetric(compressedData []byte, ep string) error {
+	s := fmt.Sprintf("http://%s/update/", ep)
+	req, err := http.NewRequest("POST", s, bytes.NewBuffer(compressedData))
+	if err != nil {
+		return fmt.Errorf("error creating request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Encoding", "gzip")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error making HTTP request: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("HTTP request failed with status: %d", resp.StatusCode)
+	}
+
+	return nil
 }
