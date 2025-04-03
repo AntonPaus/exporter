@@ -12,8 +12,7 @@ type Config struct {
 	FileStoragePath string `env:"FILE_STORAGE_PATH"`
 	StoreInterval   uint   `env:"STORE_INTERVAL"`
 	Restore         bool   `env:"RESTORE"`
-	// reportInterval int    `env:"REPORT_INTERVAL" envDefault:10`
-	// pollInterval   int    `env:"POLL_INTERVAL" envDefault:2`
+	DatabaseDSN     string `env:"DATABASE_DSN"`
 }
 
 func NewConfigServer() (*Config, error) {
@@ -25,10 +24,12 @@ func NewConfigServer() (*Config, error) {
 	fileStoragePath := new(string)
 	restore := new(bool)
 	storeInterval := new(uint)
+	databaseDSN := new(string)
 	flag.StringVar(address, "a", "localhost:8080", "server endpoint")
 	flag.UintVar(storeInterval, "i", 300, "Store interval")
 	flag.StringVar(fileStoragePath, "f", "./storage", "f")
 	flag.BoolVar(restore, "r", false, "restore config")
+	flag.StringVar(databaseDSN, "d", "localhost", "database endpoint")
 	flag.Parse()
 	if cfg.Address == "" {
 		cfg.Address = *address
@@ -41,6 +42,9 @@ func NewConfigServer() (*Config, error) {
 	}
 	if !cfg.Restore {
 		cfg.Restore = *restore
+	}
+	if cfg.DatabaseDSN == "" {
+		cfg.DatabaseDSN = *databaseDSN
 	}
 	return cfg, nil
 }

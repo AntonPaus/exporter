@@ -1,9 +1,10 @@
 package handlers
 
 import (
-	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -16,13 +17,15 @@ const (
 	MetricTypeCounter = "counter"
 )
 
-type Repository interface {
+type Storage interface {
 	Get(mType string, mName string) (any, error)
 	Update(mType string, mName string, mValue any) (any, error)
+	Terminate()
 }
 
 type Handler struct {
-	Storage Repository
+	Storage Storage
+	DB      *sql.DB
 }
 
 type Metrics struct {
@@ -30,6 +33,16 @@ type Metrics struct {
 	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
 	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
 	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+}
+
+func (h *Handler) PingDB(w http.ResponseWriter, r *http.Request) {
+	err := h.DB.Ping()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }
 
 func (h *Handler) MainPage(w http.ResponseWriter, r *http.Request) {
@@ -52,19 +65,18 @@ func (h *Handler) MainPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
-	var buf bytes.Buffer
 	var metrics Metrics
 	var ok bool
 	if r.Header.Get("Content-Type") != "application/json" {
 		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)
 		return
 	}
-	_, err := buf.ReadFrom(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err = json.Unmarshal(buf.Bytes(), &metrics); err != nil {
+	if err = json.Unmarshal(body, &metrics); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -104,22 +116,20 @@ func (h *Handler) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
-	var buf bytes.Buffer
 	var metrics Metrics
 	if r.Header.Get("Content-Type") != "application/json" {
 		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)
 		return
 	}
-	_, err := buf.ReadFrom(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err = json.Unmarshal(buf.Bytes(), &metrics); err != nil {
+	if err = json.Unmarshal(body, &metrics); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
 	value, err := h.Storage.Get(metrics.ID, metrics.MType)
 	if err != nil {
 		http.Error(w, "Wrong metric value!", http.StatusNotFound)

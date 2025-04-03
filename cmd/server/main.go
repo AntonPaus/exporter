@@ -1,9 +1,12 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/AntonPaus/exporter/internal/compression"
 	"github.com/AntonPaus/exporter/internal/config"
@@ -18,20 +21,28 @@ type App struct {
 	Storage  *memory.Storage
 	Router   *chi.Mux
 	Handlers handlers.Handler
+	db       *sql.DB
 	// Logger          *log.Logger
 }
 
 func NewApp(cfg *config.Config) (*App, error) {
+	db, err := sql.Open("pgx", cfg.DatabaseDSN)
+	if err != nil {
+		return nil, err
+	}
+
 	storage, err := memory.NewStorage(cfg.StoreInterval, cfg.FileStoragePath, cfg.Restore)
 	if err != nil {
-		return nil, fmt.Errorf("cannot initiate storage: %w", err)
+		return nil, err
 	}
 	app := &App{
 		Config:  cfg,
 		Storage: storage,
+		db:      db,
 	}
 	app.Handlers = handlers.Handler{
 		Storage: app.Storage,
+		DB:      app.db,
 	}
 	app.Router = chi.NewRouter()
 	app.setupRoutes()
@@ -48,6 +59,7 @@ func (a *App) setupRoutes() {
 	})
 	a.Router.Post("/value/", a.Handlers.GetMetricJSON)
 	a.Router.Get("/value/{type}/{name}", a.Handlers.GetMetric)
+	a.Router.Get("/ping", a.Handlers.PingDB)
 }
 
 func (a *App) Run() {
@@ -56,7 +68,8 @@ func (a *App) Run() {
 	fmt.Println("\tServer address:", a.Config.Address)
 	fmt.Println("\tFile storage path:", a.Config.FileStoragePath)
 	fmt.Println("\tStore interval:", a.Config.StoreInterval)
-	fmt.Printf("\nStarting server on %s", a.Config.Address)
+	fmt.Println("\tDB address:", a.Config.DatabaseDSN)
+	fmt.Printf("\nStarting server on %s ", a.Config.Address)
 	log.Fatal(http.ListenAndServe(a.Config.Address, a.Router))
 }
 
@@ -69,6 +82,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create app: %s", err)
 	}
+	defer app.db.Close()
 	defer app.Storage.Terminate()
 	app.Run()
 }
