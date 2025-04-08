@@ -10,6 +10,7 @@ import (
 
 	"github.com/AntonPaus/exporter/internal/compression"
 	"github.com/AntonPaus/exporter/internal/config"
+	"github.com/AntonPaus/exporter/internal/database"
 	"github.com/AntonPaus/exporter/internal/handlers"
 	"github.com/AntonPaus/exporter/internal/logger"
 	"github.com/AntonPaus/exporter/internal/storages/memory"
@@ -30,7 +31,14 @@ func NewApp(cfg *config.Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	migrations, err := database.LoadMigrations("db/migrations")
+	if err != nil {
+		return nil, err
+	}
+	err = database.ApplyMigrations(db, migrations)
+	if err != nil {
+		return nil, err
+	}
 	storage, err := memory.NewStorage(cfg.StoreInterval, cfg.FileStoragePath, cfg.Restore)
 	if err != nil {
 		return nil, err
