@@ -3,7 +3,6 @@ package memory
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -32,103 +31,101 @@ type Storage struct {
 }
 
 func NewStorage(dumpInterval uint, dumpLocation string, restoreFromFile bool) (*Storage, error) {
-	m := &Storage{
+	s := &Storage{
 		g:            make(map[string]gauge),
 		c:            make(map[string]counter),
 		dumpInterval: dumpInterval,
 		dumpFile:     nil,
 	}
 	if restoreFromFile {
-		err := m.readFromFile(dumpLocation)
+		err := s.readFromFile(dumpLocation)
 		if err != nil {
 			fmt.Println("No storage file found. Continue")
-			// return nil, err
+			return nil, err
 		}
 	}
 	dumpFile, err := os.OpenFile(dumpLocation, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, err
 	}
-	m.dumpFile = dumpFile
-	if m.dumpInterval > 0 {
-		go m.tickerDump()
+	s.dumpFile = dumpFile
+	if s.dumpInterval > 0 {
+		go s.tickerDump()
 	}
-	return m, nil
+	return s, nil
 }
 
-func (m *Storage) Terminate() {
-	m.dumpFile.Close()
+func (s *Storage) Terminate() {
+	s.dumpFile.Close()
 }
 
-func (m *Storage) Update(mName string, mType string, mValue any) (any, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (s *Storage) Update(mName string, mType string, mValue any) (any, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	switch mType {
 	case MetricTypeGauge:
-		m.g[mName] = gauge(mValue.(float64))
-		if m.dumpInterval == 0 {
-			m.dump()
+		val, ok := mValue.(float64)
+		if !ok {
+			return nil, fmt.Errorf("invalid value type for gauge")
 		}
-		return float64(m.g[mName]), nil
+		s.g[mName] = gauge(val)
 	case MetricTypeCounter:
-		m.c[mName] += counter(mValue.(int64))
-		if m.dumpInterval == 0 {
-			m.dump()
+		val, ok := mValue.(int64)
+		if !ok {
+			return nil, fmt.Errorf("invalid value for type counter")
 		}
-		return int64(m.c[mName]), nil
+		s.c[mName] += counter(val)
 	default:
-		return nil, errors.New("something went wrong")
+		return nil, fmt.Errorf("unknown metric type")
 	}
+	if s.dumpInterval == 0 {
+		s.dump()
+	}
+	return s.Get(mName, mType)
 }
 
-func (m *Storage) Get(mName string, mType string) (any, error) {
+func (s *Storage) Get(mName string, mType string) (any, error) {
 	switch mType {
 	case MetricTypeGauge:
-		v, ok := m.g[mName]
-		if ok {
-			return float64(v), nil
+		if v, ok := s.g[mName]; ok {
+			return v, nil
 		}
-		return nil, errors.New("no metric found")
 	case MetricTypeCounter:
-		v, ok := m.c[mName]
-		if ok {
-			return int64(v), nil
+		if v, ok := s.c[mName]; ok {
+			return v, nil
 		}
-		return nil, errors.New("no metric found")
-	default:
-		return nil, errors.New("unknown metric type")
 	}
+	return nil, fmt.Errorf("metric not found: %s", mName)
 }
 
-func (m *Storage) dump() {
+func (s *Storage) dump() {
 	var buf bytes.Buffer
-	d1, err := json.Marshal(m.c)
+	d1, err := json.Marshal(s.c)
 	if err != nil {
 		return
 	}
-	d2, err := json.Marshal(m.g)
+	d2, err := json.Marshal(s.g)
 	if err != nil {
 		return
 	}
 	buf.Write(append(d1, '\n'))
 	buf.Write(d2)
-	m.dumpFile.Truncate(0)
-	_, err = m.dumpFile.Write(buf.Bytes())
+	s.dumpFile.Truncate(0)
+	_, err = s.dumpFile.Write(buf.Bytes())
 	if err != nil {
 		return
 	}
 }
 
-func (m *Storage) tickerDump() {
-	ticker := time.NewTicker(time.Duration(m.dumpInterval) * time.Second)
+func (s *Storage) tickerDump() {
+	ticker := time.NewTicker(time.Duration(s.dumpInterval) * time.Second)
 	for {
 		<-ticker.C
-		// fmt.Println(int(t.Second()))
-		m.dump()
+		s.dump()
 	}
 }
 
-func (m *Storage) readFromFile(filename string) error {
+func (s *Storage) readFromFile(filename string) error {
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		return err
@@ -138,13 +135,17 @@ func (m *Storage) readFromFile(filename string) error {
 	if len(lines) < 2 {
 		return fmt.Errorf("invalid file format: expected at least two lines")
 	}
-	err = json.Unmarshal([]byte(lines[0]), &m.c)
+	err = json.Unmarshal([]byte(lines[0]), &s.c)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal([]byte(lines[1]), &m.g)
+	err = json.Unmarshal([]byte(lines[1]), &s.g)
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (s *Storage) HealthCheck() error {
 	return nil
 }
