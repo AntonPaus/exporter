@@ -16,10 +16,10 @@ type Config struct {
 	StorageType     string `env:"-"`
 }
 
-func LoadConfigServer() (Config, error) {
-	cfg := Config{}
+func LoadConfigServer() (*Config, error) {
+	cfg := &Config{}
 	if err := env.Parse(cfg); err != nil {
-		return Config{}, fmt.Errorf("config error: %w", err)
+		return nil, fmt.Errorf("config error: %w", err)
 	}
 	address := new(string)
 	fileStoragePath := new(string)
