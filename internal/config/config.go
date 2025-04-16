@@ -30,7 +30,7 @@ func LoadConfigServer() (*Config, error) {
 	flag.UintVar(storeInterval, "i", 300, "Store interval")
 	flag.StringVar(fileStoragePath, "f", "./storage.json", "f")
 	flag.BoolVar(restore, "r", false, "restore config")
-	flag.StringVar(databaseDSN, "d", "localhost", "database endpoint")
+	flag.StringVar(databaseDSN, "d", "", "database endpoint")
 	flag.Parse()
 	if cfg.Address == "" {
 		cfg.Address = *address

@@ -2,7 +2,7 @@ package server
 
 import "net/http"
 
-func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
+func (h *Server) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	err := h.Storage.HealthCheck()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

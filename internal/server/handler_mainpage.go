@@ -6,7 +6,7 @@ import (
 	"github.com/AntonPaus/exporter/internal/server/middleware"
 )
 
-func (h *Handlers) MainPage(w http.ResponseWriter, r *http.Request) {
+func (h *Server) MainPage(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
 		panic(err)

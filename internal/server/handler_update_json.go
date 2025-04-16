@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func (h *Handlers) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
+func (h *Server) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 	var metrics Metrics
 	var ok bool
 	if r.Header.Get("Content-Type") != "application/json" {

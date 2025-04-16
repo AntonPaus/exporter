@@ -8,7 +8,7 @@ import (
 	"github.com/AntonPaus/exporter/internal/server/middleware"
 )
 
-func (h *Handlers) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
+func (h *Server) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 	var metrics Metrics
 	if r.Header.Get("Content-Type") != "application/json" {
 		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)

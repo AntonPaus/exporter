@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -8,17 +9,18 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func (h *Handlers) GetMetric(w http.ResponseWriter, r *http.Request) {
+func (h *Server) GetMetric(w http.ResponseWriter, r *http.Request) {
 	var mType, mName, valueStr string
 	mType = chi.URLParam(r, "type")
 	mName = chi.URLParam(r, "name")
 	value, err := h.Storage.Get(mName, mType)
 	if err != nil {
-		http.Error(w, "Wrong metric value!", http.StatusNotFound)
+		http.Error(w, "Wrong metric!", http.StatusNotFound)
 		return
 	}
 	switch mType {
 	case MetricTypeGauge:
+		fmt.Println(value)
 		if value, ok := value.(float64); ok {
 			valueStr = strconv.FormatFloat(float64(value), 'f', -1, 64)
 		} else {

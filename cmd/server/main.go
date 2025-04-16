@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -12,14 +11,11 @@ import (
 
 func main() {
 	cfg, err := config.LoadConfigServer()
-	fmt.Println(cfg)
 	if err != nil {
 		log.Fatalf("Failed to parse arguments. Full error: %v", err)
 	}
-	fmt.Println("Current ")
 	// storageType := flag.String("storage", "memory", "storage type: memory, file, or database")
 	// flag.Parse()
-	fmt.Println(cfg)
 	application, err := app.NewApp(cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize application: %v", err)

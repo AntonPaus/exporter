@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AntonPaus/exporter/internal/compression"
+	"github.com/AntonPaus/exporter/internal/server/middleware"
 )
 
 type jsonMetrics struct {
@@ -128,7 +128,7 @@ func (m *Metrics) Report(interval time.Duration, ep string) {
 			if err != nil {
 				fmt.Printf("JSON Marshaling error: %v\nSkipping...\n", err)
 			}
-			compressedData, err := compression.CompressGzip(jsonData)
+			compressedData, err := middleware.CompressGzip(jsonData)
 			if err != nil {
 				fmt.Printf("Compression error: %v\nSkipping...\n", err)
 			}

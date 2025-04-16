@@ -64,17 +64,19 @@ func (s *Storage) Update(mName string, mType string, mValue any) (any, error) {
 	defer s.mu.Unlock()
 	switch mType {
 	case MetricTypeGauge:
-		val, ok := mValue.(float64)
-		if !ok {
+		fmt.Println("----", mValue)
+		if val, ok := mValue.(float64); ok {
+			s.g[mName] = gauge(val)
+		} else {
 			return nil, fmt.Errorf("invalid value type for gauge")
 		}
-		s.g[mName] = gauge(val)
 	case MetricTypeCounter:
-		val, ok := mValue.(int64)
-		if !ok {
-			return nil, fmt.Errorf("invalid value for type counter")
+		fmt.Println(mValue)
+		if val, ok := mValue.(int64); ok {
+			s.c[mName] += counter(val)
+		} else {
+			return nil, fmt.Errorf("invalid value type for counter")
 		}
-		s.c[mName] += counter(val)
 	default:
 		return nil, fmt.Errorf("unknown metric type")
 	}

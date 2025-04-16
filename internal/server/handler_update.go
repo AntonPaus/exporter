@@ -1,17 +1,24 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 )
 
-func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
+func (h *Server) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	var mType, mName, mValue string
 	mType = chi.URLParam(r, "type")
 	mName = chi.URLParam(r, "name")
 	mValue = chi.URLParam(r, "value")
+	h.logger.Infow("attempting to update metric",
+		"type", mType,
+		"name", mName,
+		"value", mValue,
+	)
+	fmt.Println("123")
 	switch {
 	case mType == "":
 		http.Error(w, "Wrong metric type!", http.StatusBadRequest)
@@ -26,20 +33,35 @@ func (h *Handlers) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	}
 	switch mType {
 	case MetricTypeGauge:
-		_, err := strconv.ParseFloat(mValue, 64)
+		val, err := strconv.ParseFloat(mValue, 64)
 		if err != nil {
 			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
 			return
 		}
-		h.Storage.Update(mName, mType, mValue)
-
+		v, err := h.Storage.Update(mName, mType, val)
+		if err != nil {
+			http.Error(w, "Metric update didn't succed", http.StatusBadRequest)
+			return
+		}
+		h.logger.Infow("updated value",
+			"value", v,
+		)
 	case MetricTypeCounter:
-		_, err := strconv.ParseInt(mValue, 10, 64)
+		fmt.Println("3")
+		val, err := strconv.ParseInt(mValue, 10, 64)
 		if err != nil {
 			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
 			return
 		}
-		h.Storage.Update(mName, mType, mValue)
+		v, err := h.Storage.Update(mName, mType, val)
+		if err != nil {
+			fmt.Println(err)
+			http.Error(w, "Metric update didn't succed", http.StatusBadRequest)
+			return
+		}
+		h.logger.Infow("updated value",
+			"value", v,
+		)
 	default:
 		http.Error(w, "Wrong metric type!", http.StatusBadRequest)
 		return

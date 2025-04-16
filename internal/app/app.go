@@ -11,9 +11,10 @@ import (
 
 type App struct {
 	server *server.Server
+	ep     string
 }
 
-func NewApp(cfg config.Config) (*App, error) {
+func NewApp(cfg *config.Config) (*App, error) {
 	var storage storage.Storage
 	var err error
 	switch cfg.StorageType {
@@ -32,9 +33,9 @@ func NewApp(cfg config.Config) (*App, error) {
 		return nil, err
 	}
 	srv := server.NewServer(storage)
-	return &App{server: srv}, nil
+	return &App{server: srv, ep: cfg.Address}, nil
 }
 
 func (a *App) Run() error {
-	return a.server.Start()
+	return a.server.Start(a.ep)
 }

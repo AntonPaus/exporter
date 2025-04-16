@@ -1,13 +1,13 @@
 package server
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/AntonPaus/exporter/internal/logger"
 	"github.com/AntonPaus/exporter/internal/server/middleware"
 	"github.com/AntonPaus/exporter/internal/storage"
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 const (
@@ -24,38 +24,42 @@ type Metrics struct {
 
 type Server struct {
 	router  *chi.Mux
-	storage storage.Storage
+	Storage storage.Storage
+	logger  *zap.SugaredLogger
 }
 
-type Handlers struct {
-	Storage storage.Storage
-}
+// type Handlers struct {
+// 	Storage storage.Storage
+// 	Logger  *zap.SugaredLogger
+// }
 
 func NewServer(storage storage.Storage) *Server {
+	sugar := logger.GetLogger()
 	s := &Server{
 		router:  chi.NewRouter(),
-		storage: storage,
+		Storage: storage,
+		logger:  sugar,
 	}
 	s.routes()
 	return s
 }
 
 func (s *Server) routes() {
-	handlers := &Handlers{Storage: s.storage}
+	// handlers := &Handlers{Storage: s.storage}
 
-	s.router.Use(logger.WithLogging)
-	s.router.Get("/", handlers.MainPage)
+	s.router.Use(logger.WithLoggingNew)
+	s.router.Get("/", s.MainPage)
 	s.router.Route("/update", func(r chi.Router) {
 		r.Use(middleware.WithUncompressGzip)
-		r.Post("/", handlers.UpdateMetricJSON)
-		r.Post("/{type}/{name}/{value}", handlers.UpdateMetric)
+		r.Post("/", s.UpdateMetricJSON)
+		r.Post("/{type}/{name}/{value}", s.UpdateMetric)
 	})
-	s.router.Post("/value/", handlers.GetMetricJSON)
-	s.router.Get("/value/{type}/{name}", handlers.GetMetric)
-	s.router.Get("/ping", handlers.HealthCheck)
+	s.router.Post("/value/", s.GetMetricJSON)
+	s.router.Get("/value/{type}/{name}", s.GetMetric)
+	s.router.Get("/ping", s.HealthCheck)
 }
 
-func (s *Server) Start() error {
-	log.Println("Starting server on :8080")
-	return http.ListenAndServe(":8080", s.router)
+func (s *Server) Start(ep string) error {
+	s.logger.Infow("Starting server on ", "address", ep)
+	return http.ListenAndServe(ep, s.router)
 }
