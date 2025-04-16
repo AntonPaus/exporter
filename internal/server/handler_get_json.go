@@ -23,27 +23,24 @@ func (h *Server) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	value, err := h.Storage.Get(metrics.ID, metrics.MType)
-	if err != nil {
-		http.Error(w, "Wrong metric value!", http.StatusNotFound)
-		return
-	}
+	// value, err := h.Storage.Get(metrics.ID, metrics.MType)
+	// if err != nil {
+	// 	http.Error(w, "Wrong metric value!", http.StatusNotFound)
+	// 	return
+	// }
 	switch metrics.MType {
 	case MetricTypeGauge:
-		if value, ok := value.(float64); ok {
-			metrics.Value = &value
-		} else {
-			http.Error(w, "Unsupported value type", http.StatusInternalServerError)
+		*metrics.Value, err = h.Storage.GetGauge(metrics.ID)
+		if err != nil {
+			http.Error(w, "Wrong metric!", http.StatusInternalServerError)
 			return
 		}
 	case MetricTypeCounter:
-		if value, ok := value.(int64); ok {
-			metrics.Delta = &value
-		} else {
-			http.Error(w, "Unsupported value type", http.StatusInternalServerError)
+		*metrics.Delta, err = h.Storage.GetCounter(metrics.ID)
+		if err != nil {
+			http.Error(w, "Wrong metric!", http.StatusInternalServerError)
 			return
 		}
-		*metrics.Delta = value.(int64)
 	default:
 		http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 		return

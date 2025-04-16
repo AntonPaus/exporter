@@ -59,45 +59,38 @@ func (s *Storage) Terminate() {
 	s.dumpFile.Close()
 }
 
-func (s *Storage) Update(mName string, mType string, mValue any) (any, error) {
+func (s *Storage) UpdateGauge(mName string, mValue float64) (float64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	switch mType {
-	case MetricTypeGauge:
-		fmt.Println("----", mValue)
-		if val, ok := mValue.(float64); ok {
-			s.g[mName] = gauge(val)
-		} else {
-			return nil, fmt.Errorf("invalid value type for gauge")
-		}
-	case MetricTypeCounter:
-		fmt.Println(mValue)
-		if val, ok := mValue.(int64); ok {
-			s.c[mName] += counter(val)
-		} else {
-			return nil, fmt.Errorf("invalid value type for counter")
-		}
-	default:
-		return nil, fmt.Errorf("unknown metric type")
-	}
+	s.g[mName] = gauge(mValue)
 	if s.dumpInterval == 0 {
 		s.dump()
 	}
-	return s.Get(mName, mType)
+	return s.GetGauge(mName)
 }
 
-func (s *Storage) Get(mName string, mType string) (any, error) {
-	switch mType {
-	case MetricTypeGauge:
-		if v, ok := s.g[mName]; ok {
-			return v, nil
-		}
-	case MetricTypeCounter:
-		if v, ok := s.c[mName]; ok {
-			return v, nil
-		}
+func (s *Storage) UpdateCounter(mName string, mValue int64) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.c[mName] += counter(mValue)
+	if s.dumpInterval == 0 {
+		s.dump()
 	}
-	return nil, fmt.Errorf("metric not found: %s", mName)
+	return s.GetCounter(mName)
+}
+
+func (s *Storage) GetCounter(mName string) (int64, error) {
+	if v, ok := s.c[mName]; ok {
+		return int64(v), nil
+	}
+	return 0, fmt.Errorf("metric not found: %s", mName)
+}
+
+func (s *Storage) GetGauge(mName string) (float64, error) {
+	if v, ok := s.g[mName]; ok {
+		return float64(v), nil
+	}
+	return 0, fmt.Errorf("metric not found: %s", mName)
 }
 
 func (s *Storage) dump() {

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -18,7 +17,6 @@ func (h *Server) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		"name", mName,
 		"value", mValue,
 	)
-	fmt.Println("123")
 	switch {
 	case mType == "":
 		http.Error(w, "Wrong metric type!", http.StatusBadRequest)
@@ -38,7 +36,7 @@ func (h *Server) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
 			return
 		}
-		v, err := h.Storage.Update(mName, mType, val)
+		v, err := h.Storage.UpdateGauge(mName, val)
 		if err != nil {
 			http.Error(w, "Metric update didn't succed", http.StatusBadRequest)
 			return
@@ -47,15 +45,13 @@ func (h *Server) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 			"value", v,
 		)
 	case MetricTypeCounter:
-		fmt.Println("3")
 		val, err := strconv.ParseInt(mValue, 10, 64)
 		if err != nil {
 			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
 			return
 		}
-		v, err := h.Storage.Update(mName, mType, val)
+		v, err := h.Storage.UpdateCounter(mName, val)
 		if err != nil {
-			fmt.Println(err)
 			http.Error(w, "Metric update didn't succed", http.StatusBadRequest)
 			return
 		}

@@ -2,14 +2,12 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 )
 
 func (h *Server) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 	var metrics Metrics
-	var ok bool
 	if r.Header.Get("Content-Type") != "application/json" {
 		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)
 		return
@@ -25,27 +23,18 @@ func (h *Server) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 	}
 	switch metrics.MType {
 	case MetricTypeGauge:
-		vStr := fmt.Sprintf("%v", *metrics.Value)
-		v, err := h.Storage.Update(metrics.ID, metrics.MType, vStr)
+		_, err := h.Storage.UpdateGauge(metrics.ID, *metrics.Value)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if *metrics.Value, ok = v.(float64); !ok {
-			http.Error(w, "value is not gauge type", http.StatusBadRequest)
 			return
 		}
 	case MetricTypeCounter:
-		vStr := fmt.Sprintf("%v", *metrics.Value)
-		v, err := h.Storage.Update(metrics.ID, metrics.MType, vStr)
+		v, err := h.Storage.UpdateCounter(metrics.ID, *metrics.Delta)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if *metrics.Delta, ok = v.(int64); !ok {
-			http.Error(w, "value is not counter type", http.StatusBadRequest)
-			return
-		}
+		*metrics.Delta = v
 	default:
 		http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 		return

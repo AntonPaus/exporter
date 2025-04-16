@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 
@@ -13,32 +12,27 @@ func (h *Server) GetMetric(w http.ResponseWriter, r *http.Request) {
 	var mType, mName, valueStr string
 	mType = chi.URLParam(r, "type")
 	mName = chi.URLParam(r, "name")
-	value, err := h.Storage.Get(mName, mType)
-	if err != nil {
-		http.Error(w, "Wrong metric!", http.StatusNotFound)
-		return
-	}
 	switch mType {
 	case MetricTypeGauge:
-		fmt.Println(value)
-		if value, ok := value.(float64); ok {
-			valueStr = strconv.FormatFloat(float64(value), 'f', -1, 64)
-		} else {
-			http.Error(w, "Unsupported value type", http.StatusInternalServerError)
+		value, err := h.Storage.GetGauge(mName)
+		if err != nil {
+			http.Error(w, "Wrong metric!", http.StatusNotFound)
 			return
 		}
+		valueStr = strconv.FormatFloat(value, 'f', -1, 64)
 	case MetricTypeCounter:
-		if value, ok := value.(int64); ok {
-			valueStr = strconv.FormatInt(int64(value), 10)
-		} else {
-			http.Error(w, "Unsupported value type", http.StatusInternalServerError)
+		value, err := h.Storage.GetCounter(mName)
+		if err != nil {
+			http.Error(w, "Wrong metric!", http.StatusNotFound)
 			return
 		}
+		valueStr = strconv.FormatInt(value, 10)
 	default:
 		http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 		return
 	}
 	resp := []byte(valueStr)
+	var err error
 	if r.Header.Get("Accept-Encoding") == "gzip" {
 		resp, err = middleware.CompressGzip([]byte(valueStr))
 		if err != nil {
