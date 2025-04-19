@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/AntonPaus/exporter/internal/storage"
 )
 
 const (
@@ -19,21 +21,19 @@ type Settings struct {
 	Port int    `json:"port"`
 	Host string `json:"host"`
 }
-type gauge float64
-type counter int64
 
 type Storage struct {
 	mu           sync.Mutex
-	g            map[string]gauge
-	c            map[string]counter
+	g            map[string]storage.Gauge
+	c            map[string]storage.Counter
 	dumpInterval uint
 	dumpFile     *os.File
 }
 
 func NewStorage(dumpInterval uint, dumpLocation string, restoreFromFile bool) (*Storage, error) {
 	s := &Storage{
-		g:            make(map[string]gauge),
-		c:            make(map[string]counter),
+		g:            make(map[string]storage.Gauge),
+		c:            make(map[string]storage.Counter),
 		dumpInterval: dumpInterval,
 		dumpFile:     nil,
 	}
@@ -59,36 +59,36 @@ func (s *Storage) Terminate() {
 	s.dumpFile.Close()
 }
 
-func (s *Storage) UpdateGauge(mName string, mValue float64) (float64, error) {
+func (s *Storage) UpdateGauge(mName string, mValue storage.Gauge) (storage.Gauge, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.g[mName] = gauge(mValue)
+	s.g[mName] = storage.Gauge(mValue)
 	if s.dumpInterval == 0 {
 		s.dump()
 	}
 	return s.GetGauge(mName)
 }
 
-func (s *Storage) UpdateCounter(mName string, mValue int64) (int64, error) {
+func (s *Storage) UpdateCounter(mName string, mValue storage.Counter) (storage.Counter, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.c[mName] += counter(mValue)
+	s.c[mName] += storage.Counter(mValue)
 	if s.dumpInterval == 0 {
 		s.dump()
 	}
 	return s.GetCounter(mName)
 }
 
-func (s *Storage) GetCounter(mName string) (int64, error) {
+func (s *Storage) GetCounter(mName string) (storage.Counter, error) {
 	if v, ok := s.c[mName]; ok {
-		return int64(v), nil
+		return storage.Counter(v), nil
 	}
 	return 0, fmt.Errorf("metric not found: %s", mName)
 }
 
-func (s *Storage) GetGauge(mName string) (float64, error) {
+func (s *Storage) GetGauge(mName string) (storage.Gauge, error) {
 	if v, ok := s.g[mName]; ok {
-		return float64(v), nil
+		return storage.Gauge(v), nil
 	}
 	return 0, fmt.Errorf("metric not found: %s", mName)
 }
