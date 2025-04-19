@@ -19,14 +19,14 @@ func (h *Server) GetMetric(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Wrong metric!", http.StatusNotFound)
 			return
 		}
-		valueStr = strconv.FormatFloat(value, 'f', -1, 64)
+		valueStr = strconv.FormatFloat(float64(value), 'f', -1, 64)
 	case MetricTypeCounter:
 		value, err := h.Storage.GetCounter(mName)
 		if err != nil {
 			http.Error(w, "Wrong metric!", http.StatusNotFound)
 			return
 		}
-		valueStr = strconv.FormatInt(value, 10)
+		valueStr = strconv.FormatInt(int64(value), 10)
 	default:
 		http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 		return

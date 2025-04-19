@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/AntonPaus/exporter/internal/storage"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -36,7 +37,7 @@ func (h *Server) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
 			return
 		}
-		v, err := h.Storage.UpdateGauge(mName, val)
+		v, err := h.Storage.UpdateGauge(mName, storage.Gauge(val))
 		if err != nil {
 			http.Error(w, "Metric update didn't succed", http.StatusBadRequest)
 			return
@@ -50,7 +51,7 @@ func (h *Server) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
 			return
 		}
-		v, err := h.Storage.UpdateCounter(mName, val)
+		v, err := h.Storage.UpdateCounter(mName, storage.Counter(val))
 		if err != nil {
 			http.Error(w, "Metric update didn't succed", http.StatusBadRequest)
 			return

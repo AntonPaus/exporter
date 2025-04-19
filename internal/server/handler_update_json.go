@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+
+	"github.com/AntonPaus/exporter/internal/storage"
 )
 
 func (h *Server) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
@@ -23,18 +25,18 @@ func (h *Server) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 	}
 	switch metrics.MType {
 	case MetricTypeGauge:
-		_, err := h.Storage.UpdateGauge(metrics.ID, *metrics.Value)
+		_, err := h.Storage.UpdateGauge(metrics.ID, storage.Gauge(*metrics.Value))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 	case MetricTypeCounter:
-		v, err := h.Storage.UpdateCounter(metrics.ID, *metrics.Delta)
+		v, err := h.Storage.UpdateCounter(metrics.ID, storage.Counter(*metrics.Delta))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		*metrics.Delta = v
+		*metrics.Delta = int64(v)
 	default:
 		http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 		return

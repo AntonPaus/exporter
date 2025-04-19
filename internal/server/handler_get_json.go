@@ -30,13 +30,15 @@ func (h *Server) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 	// }
 	switch metrics.MType {
 	case MetricTypeGauge:
-		*metrics.Value, err = h.Storage.GetGauge(metrics.ID)
+		v, err := h.Storage.GetGauge(metrics.ID)
+		*metrics.Value = float64(v)
 		if err != nil {
 			http.Error(w, "Wrong metric!", http.StatusInternalServerError)
 			return
 		}
 	case MetricTypeCounter:
-		*metrics.Delta, err = h.Storage.GetCounter(metrics.ID)
+		v, err := h.Storage.GetCounter(metrics.ID)
+		*metrics.Delta = int64(v)
 		if err != nil {
 			http.Error(w, "Wrong metric!", http.StatusInternalServerError)
 			return
