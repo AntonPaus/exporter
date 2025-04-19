@@ -28,11 +28,6 @@ type Server struct {
 	logger  *zap.SugaredLogger
 }
 
-// type Handlers struct {
-// 	Storage storage.Storage
-// 	Logger  *zap.SugaredLogger
-// }
-
 func NewServer(storage storage.Storage) *Server {
 	sugar := logger.GetLogger()
 	s := &Server{
@@ -45,8 +40,6 @@ func NewServer(storage storage.Storage) *Server {
 }
 
 func (s *Server) routes() {
-	// handlers := &Handlers{Storage: s.storage}
-
 	s.router.Use(logger.WithLoggingNew)
 	s.router.Get("/", s.MainPage)
 	s.router.Route("/update", func(r chi.Router) {

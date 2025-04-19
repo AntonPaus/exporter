@@ -23,11 +23,6 @@ func (s *Server) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	// value, err := s.Storage.Get(metrics.ID, metrics.MType)
-	// if err != nil {
-	// 	http.Error(w, "Wrong metric value!", http.StatusNotFound)
-	// 	return
-	// }
 	switch metrics.MType {
 	case MetricTypeGauge:
 		v, err := s.Storage.GetGauge(metrics.ID)
