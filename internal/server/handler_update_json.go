@@ -8,7 +8,7 @@ import (
 	"github.com/AntonPaus/exporter/internal/storage"
 )
 
-func (h *Server) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
+func (s *Server) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 	var metrics Metrics
 	if r.Header.Get("Content-Type") != "application/json" {
 		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)
@@ -25,13 +25,13 @@ func (h *Server) UpdateMetricJSON(w http.ResponseWriter, r *http.Request) {
 	}
 	switch metrics.MType {
 	case MetricTypeGauge:
-		_, err := h.Storage.UpdateGauge(metrics.ID, storage.Gauge(*metrics.Value))
+		_, err := s.Storage.UpdateGauge(metrics.ID, storage.Gauge(*metrics.Value))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 	case MetricTypeCounter:
-		v, err := h.Storage.UpdateCounter(metrics.ID, storage.Counter(*metrics.Delta))
+		v, err := s.Storage.UpdateCounter(metrics.ID, storage.Counter(*metrics.Delta))
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

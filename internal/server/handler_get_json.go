@@ -8,7 +8,7 @@ import (
 	"github.com/AntonPaus/exporter/internal/server/middleware"
 )
 
-func (h *Server) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 	var metrics Metrics
 	if r.Header.Get("Content-Type") != "application/json" {
 		http.Error(w, "Unsupported Content-Type", http.StatusUnsupportedMediaType)
@@ -23,21 +23,21 @@ func (h *Server) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	// value, err := h.Storage.Get(metrics.ID, metrics.MType)
+	// value, err := s.Storage.Get(metrics.ID, metrics.MType)
 	// if err != nil {
 	// 	http.Error(w, "Wrong metric value!", http.StatusNotFound)
 	// 	return
 	// }
 	switch metrics.MType {
 	case MetricTypeGauge:
-		v, err := h.Storage.GetGauge(metrics.ID)
+		v, err := s.Storage.GetGauge(metrics.ID)
 		*metrics.Value = float64(v)
 		if err != nil {
 			http.Error(w, "Wrong metric!", http.StatusInternalServerError)
 			return
 		}
 	case MetricTypeCounter:
-		v, err := h.Storage.GetCounter(metrics.ID)
+		v, err := s.Storage.GetCounter(metrics.ID)
 		*metrics.Delta = int64(v)
 		if err != nil {
 			http.Error(w, "Wrong metric!", http.StatusInternalServerError)

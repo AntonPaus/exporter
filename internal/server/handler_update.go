@@ -8,12 +8,12 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func (h *Server) UpdateMetric(w http.ResponseWriter, r *http.Request) {
+func (s *Server) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	var mType, mName, mValue string
 	mType = chi.URLParam(r, "type")
 	mName = chi.URLParam(r, "name")
 	mValue = chi.URLParam(r, "value")
-	h.logger.Infow("attempting to update metric",
+	s.logger.Infow("attempting to update metric",
 		"type", mType,
 		"name", mName,
 		"value", mValue,
@@ -37,12 +37,12 @@ func (h *Server) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
 			return
 		}
-		v, err := h.Storage.UpdateGauge(mName, storage.Gauge(val))
+		v, err := s.Storage.UpdateGauge(mName, storage.Gauge(val))
 		if err != nil {
 			http.Error(w, "Metric update didn't succed", http.StatusBadRequest)
 			return
 		}
-		h.logger.Infow("updated value",
+		s.logger.Infow("updated value",
 			"value", v,
 		)
 	case MetricTypeCounter:
@@ -51,12 +51,12 @@ func (h *Server) UpdateMetric(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Wrong metric value!", http.StatusBadRequest)
 			return
 		}
-		v, err := h.Storage.UpdateCounter(mName, storage.Counter(val))
+		v, err := s.Storage.UpdateCounter(mName, storage.Counter(val))
 		if err != nil {
 			http.Error(w, "Metric update didn't succed", http.StatusBadRequest)
 			return
 		}
-		h.logger.Infow("updated value",
+		s.logger.Infow("updated value",
 			"value", v,
 		)
 	default:

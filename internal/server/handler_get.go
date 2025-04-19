@@ -8,20 +8,20 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func (h *Server) GetMetric(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetMetric(w http.ResponseWriter, r *http.Request) {
 	var mType, mName, valueStr string
 	mType = chi.URLParam(r, "type")
 	mName = chi.URLParam(r, "name")
 	switch mType {
 	case MetricTypeGauge:
-		value, err := h.Storage.GetGauge(mName)
+		value, err := s.Storage.GetGauge(mName)
 		if err != nil {
 			http.Error(w, "Wrong metric!", http.StatusNotFound)
 			return
 		}
 		valueStr = strconv.FormatFloat(float64(value), 'f', -1, 64)
 	case MetricTypeCounter:
-		value, err := h.Storage.GetCounter(mName)
+		value, err := s.Storage.GetCounter(mName)
 		if err != nil {
 			http.Error(w, "Wrong metric!", http.StatusNotFound)
 			return
