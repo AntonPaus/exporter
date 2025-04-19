@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS gauge (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL UNIQUE,
+    value double precision DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -11,10 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AntonPaus/exporter/internal/compression"
-	"github.com/AntonPaus/exporter/internal/handlers"
+	"github.com/AntonPaus/exporter/internal/server/middleware"
 )
 
+type jsonMetrics struct {
+	ID    string   `json:"id"`              // имя метрики
+	MType string   `json:"type"`            // параметр, принимающий значение gauge или counter
+	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи counter
+	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи gauge
+}
 type gauge float64
 type counter int64
 
@@ -103,7 +108,7 @@ func (m *Metrics) Report(interval time.Duration, ep string) {
 		statsType := reflect.TypeOf(m.values)
 		statsValue := reflect.ValueOf(m.values)
 		for i := range statsType.NumField() {
-			var h handlers.Metrics
+			var h jsonMetrics
 			field := statsType.Field(i)
 			value := statsValue.Field(i)
 			fieldTypeParts := strings.Split(field.Type.String(), ".")
@@ -123,7 +128,7 @@ func (m *Metrics) Report(interval time.Duration, ep string) {
 			if err != nil {
 				fmt.Printf("JSON Marshaling error: %v\nSkipping...\n", err)
 			}
-			compressedData, err := compression.CompressGzip(jsonData)
+			compressedData, err := middleware.CompressGzip(jsonData)
 			if err != nil {
 				fmt.Printf("Compression error: %v\nSkipping...\n", err)
 			}

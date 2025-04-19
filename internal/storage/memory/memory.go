@@ -1,0 +1,146 @@
+package memory
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/AntonPaus/exporter/internal/storage"
+)
+
+const (
+	MetricTypeGauge   = "gauge"
+	MetricTypeCounter = "counter"
+)
+
+type Settings struct {
+	Port int    `json:"port"`
+	Host string `json:"host"`
+}
+
+type Storage struct {
+	mu           sync.Mutex
+	g            map[string]storage.Gauge
+	c            map[string]storage.Counter
+	dumpInterval uint
+	dumpFile     *os.File
+}
+
+func NewStorage(dumpInterval uint, dumpLocation string, restoreFromFile bool) (*Storage, error) {
+	s := &Storage{
+		g:            make(map[string]storage.Gauge),
+		c:            make(map[string]storage.Counter),
+		dumpInterval: dumpInterval,
+		dumpFile:     nil,
+	}
+	if restoreFromFile {
+		err := s.readFromFile(dumpLocation)
+		if err != nil {
+			fmt.Println("No storage file found. Continue")
+			return nil, err
+		}
+	}
+	dumpFile, err := os.OpenFile(dumpLocation, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return nil, err
+	}
+	s.dumpFile = dumpFile
+	if s.dumpInterval > 0 {
+		go s.tickerDump()
+	}
+	return s, nil
+}
+
+func (s *Storage) Terminate() {
+	s.dumpFile.Close()
+}
+
+func (s *Storage) UpdateGauge(mName string, mValue storage.Gauge) (storage.Gauge, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.g[mName] = storage.Gauge(mValue)
+	if s.dumpInterval == 0 {
+		s.dump()
+	}
+	return s.GetGauge(mName)
+}
+
+func (s *Storage) UpdateCounter(mName string, mValue storage.Counter) (storage.Counter, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.c[mName] += storage.Counter(mValue)
+	if s.dumpInterval == 0 {
+		s.dump()
+	}
+	return s.GetCounter(mName)
+}
+
+func (s *Storage) GetCounter(mName string) (storage.Counter, error) {
+	if v, ok := s.c[mName]; ok {
+		return storage.Counter(v), nil
+	}
+	return 0, fmt.Errorf("metric not found: %s", mName)
+}
+
+func (s *Storage) GetGauge(mName string) (storage.Gauge, error) {
+	if v, ok := s.g[mName]; ok {
+		return storage.Gauge(v), nil
+	}
+	return 0, fmt.Errorf("metric not found: %s", mName)
+}
+
+func (s *Storage) dump() {
+	var buf bytes.Buffer
+	d1, err := json.Marshal(s.c)
+	if err != nil {
+		return
+	}
+	d2, err := json.Marshal(s.g)
+	if err != nil {
+		return
+	}
+	buf.Write(append(d1, '\n'))
+	buf.Write(d2)
+	s.dumpFile.Truncate(0)
+	_, err = s.dumpFile.Write(buf.Bytes())
+	if err != nil {
+		return
+	}
+}
+
+func (s *Storage) tickerDump() {
+	ticker := time.NewTicker(time.Duration(s.dumpInterval) * time.Second)
+	for {
+		<-ticker.C
+		s.dump()
+	}
+}
+
+func (s *Storage) readFromFile(filename string) error {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+	content = bytes.ReplaceAll(content, []byte{0}, nil)
+	lines := strings.Split(string(content), "\n")
+	if len(lines) < 2 {
+		return fmt.Errorf("invalid file format: expected at least two lines")
+	}
+	err = json.Unmarshal([]byte(lines[0]), &s.c)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal([]byte(lines[1]), &s.g)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Storage) HealthCheck() error {
+	return nil
+}
