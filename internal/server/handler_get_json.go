@@ -27,17 +27,19 @@ func (s *Server) GetMetricJSON(w http.ResponseWriter, r *http.Request) {
 	case MetricTypeGauge:
 		v, err := s.Storage.GetGauge(metrics.ID)
 		if err != nil {
-			http.Error(w, "Wrong metric!", http.StatusInternalServerError)
+			http.Error(w, "Wrong metric!", http.StatusNotFound)
 			return
 		}
-		*metrics.Value = float64(v)
+		v2 := float64(v)
+		metrics.Value = &v2
 	case MetricTypeCounter:
 		v, err := s.Storage.GetCounter(metrics.ID)
 		if err != nil {
-			http.Error(w, "Wrong metric!", http.StatusInternalServerError)
+			http.Error(w, "Wrong metric!", http.StatusNotFound)
 			return
 		}
-		*metrics.Delta = int64(v)
+		v2 := int64(v)
+		metrics.Delta = &v2
 	default:
 		http.Error(w, "Unsupported value type", http.StatusInternalServerError)
 		return
